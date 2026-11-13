@@ -180,7 +180,7 @@ function shellHTML(){
 function loginHTML(){
   const boot = UI.needsBootstrap;
   const m = UI.loginMode;
-  const demo = B.mode === "local" && !boot ? `<div class="demo-logins"><div class="small muted">Sinov uchun tayyor loginlar (bosing):</div>${(UI.loginMode === "admin" ? [["admin","123456","Administrator"]] : [["dilshod","111111","Sotuvchi"],["jasur","222222","O'lchovchi"],["nodira","333333","Texnolog"],["bekzod","444444","Menejer"],["rustam","555555","Yig'uvchi"]]).map(([l, pw, r]) => `<button class="chip" data-act="demoFill" data-l="${l}" data-p="${pw}">${l} · ${r}</button>`).join("")}</div>` : "";
+  const demo = B.mode === "local" && !boot ? `<div class="demo-logins"><div class="small muted">Sinov uchun tayyor loginlar (bosing):</div>${[["admin","123456","Administrator"],["dilshod","111111","Sotuvchi"],["jasur","222222","O'lchovchi"],["nodira","333333","Texnolog"],["bekzod","444444","Menejer"],["rustam","555555","Yig'uvchi"]].map(([l, pw, r]) => `<button class="chip" data-act="demoFill" data-l="${l}" data-p="${pw}">${l} · ${r}</button>`).join("")}</div>` : "";
   return `<div class="login"><div class="login-card">
     <div class="brand big"><span class="mark"><img src="icons/logo-mark.png" alt="Mebel 24"></span><div><b>${esc(APP)}</b><small>${esc(ST.settings?.company || "Mebel loyihalari boshqaruvi")}</small></div></div>
     ${boot ? `<h1>Birinchi administrator</h1><p class="muted">Tizimda hali hech kim yo'q. Administrator hisobini yarating: keyin u xodimlarni qo'shadi.</p>
@@ -188,13 +188,13 @@ function loginHTML(){
       <div class="fld"><label for="b-login">Login</label><input class="inp" id="b-login" name="login" required autocomplete="username" autocapitalize="none" placeholder="masalan: admin"></div>
       <div class="fld"><label for="b-pass">Parol (kamida 6 belgi)</label><input class="inp" id="b-pass" name="password" type="password" required autocomplete="new-password"></div>
       <button class="btn pri big" type="submit">Yaratish va kirish</button></form>`
-    : `<div class="seg" role="tablist"><button class="${m === "xodim" ? "on" : ""}" data-act="loginMode" data-v="xodim" role="tab">Xodim</button><button class="${m === "admin" ? "on" : ""}" data-act="loginMode" data-v="admin" role="tab">Administrator</button></div>
-      <form id="loginForm" class="stack"><div class="fld"><label for="l-login">${m === "admin" ? "Administrator logini" : "Loginingiz"}</label><input class="inp big" id="l-login" name="login" required autocomplete="username" autocapitalize="none" value="${esc(UI.lastLogin || "")}"></div>
+    : `<h1>Kirish</h1>
+      <form id="loginForm" class="stack"><div class="fld"><label for="l-login">Login</label><input class="inp big" id="l-login" name="login" required autocomplete="username" autocapitalize="none" value="${esc(UI.lastLogin || "")}"></div>
       <div class="fld"><label for="l-pass">Parol</label><input class="inp big" id="l-pass" name="password" type="password" required autocomplete="current-password"></div>
       ${UI.loginErr ? `<div class="err">${esc(UI.loginErr)}</div>` : ""}
       <button class="btn pri big" type="submit" ${UI.busy ? "disabled" : ""}>${UI.busy ? "Kirilmoqda…" : "Kirish"}</button></form>
       ${installHTML(true) ? `<div style="margin:-4px 0 0">${installHTML(true)}</div>` : ""}
-      <p class="small muted" style="margin:0">${m === "admin" ? "Administrator hamma bo'limlarni, moliyani va xodimlarni boshqaradi." : "Login va parolni administrator beradi. Esingizdan chiqqan bo'lsa, administratorga murojaat qiling."}</p>${demo}`}
+      <p class="small muted" style="margin:0">Login va parolni administrator beradi. Esingizdan chiqqan bo'lsa, administratorga murojaat qiling.</p>${demo}`}
   </div></div>`;
 }
 
@@ -503,7 +503,7 @@ function vUslugalar(){
 function vXodimlar(){
   let h = `<div class="head"><div><h1>Xodimlar</h1><p class="muted">Har bir xodimning logini, roli va natijasi</p></div><button class="btn pri" data-act="userEdit" data-id="">+ Xodim</button></div>`;
   return h + `<div class="card"><div class="tblw"><table class="tbl"><thead><tr><th>Xodim</th><th>Rol</th><th>Login</th><th class="r">Lead</th><th class="r">Sotdi</th><th class="r">Faol vazifa</th><th></th></tr></thead><tbody>${ST.users.map(u => { const leads = ST.projects.filter(p => p.sellerId === u.id).length, sold = ST.projects.filter(p => p.sellerId === u.id && p.sale).length; const tasks = ST.projects.filter(p => { const s = nextStep(p); return s && (s.who === u.id || (s.all || []).includes(u.id)); }).length; return `<tr style="${u.active === false ? "opacity:.5" : ""}"><td><div class="t1">${esc(u.name)}</div><div class="t2">${esc(u.phone || "")}</div></td><td>${pill(ROLES[u.role]?.n || u.role, u.role === "admin" ? "accent" : "")}${u.active === false ? " " + pill("faol emas", "bad") : ""}</td><td class="mono">${esc(u.login)}</td><td class="r">${leads}</td><td class="r">${sold}</td><td class="r">${tasks}</td><td class="r"><button class="btn sm" data-act="userEdit" data-id="${u.id}">Tahrirlash</button></td></tr>`; }).join("")}</tbody></table></div></div>
-    <p class="muted small">Xodim ilovaga «Xodim» bo'limidan o'z logini va paroli bilan kiradi. Administrator «Administrator» bo'limidan kiradi.</p>`;
+    <p class="muted small">Har bir xodim ilovaga o'z logini va paroli bilan kiradi. Ilova rolga qarab kerakli bo'limlarni ochadi.</p>`;
 }
 
 /* ---------------- Sozlamalar ---------------- */
@@ -753,8 +753,6 @@ document.addEventListener("submit", async ev => {
     const v = Object.fromEntries(new FormData(f)); UI.busy = true; UI.loginErr = ""; UI.lastLogin = v.login; render();
     try {
       const u = await B.signIn(v.login, v.password);
-      if (UI.loginMode === "admin" && u.role !== "admin"){ await B.signOut(); throw new Error("Bu administrator logini emas. «Xodim» bo'limidan kiring"); }
-      if (UI.loginMode === "xodim" && u.role === "admin"){ await B.signOut(); throw new Error("Administrator «Administrator» bo'limidan kiradi"); }
       safeLS.set("mebel-ilova:last", v.login);
       ST.me = u; UI.busy = false; UI.route = (location.hash.slice(1) || "bosh"); await reload();
     } catch (e) { UI.busy = false; UI.loginErr = e.message; render(); }
