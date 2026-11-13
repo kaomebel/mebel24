@@ -1,10 +1,9 @@
 {
- "version": "1.4",
+ "version": "1.5",
  "date": "2026-11-13",
  "notes": [
-  "Vazifalar Trello'dagidek ustunlarda: har bir bosqich alohida ustun",
-  "Yangi «Jarayonlar» bo'limi: hamma loyihalar qaysi bosqichda ekani bitta doskada",
-  "Pastki menyu: Bosh, Vazifalar, Jarayonlar, Ko'rsatkichlar, Menyu",
-  "Yangi versiya chiqqanda ilovada xabar va «Yangilash» tugmasi"
+  "«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari",
+  "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash",
+  "Vazifalar Trello ustunlarida, yangi pastki menyu (1.4 dagi o'zgarishlar)"
  ]
 }

@@ -288,3 +288,5 @@ textarea.inp{resize:vertical}
   .board.tb .col{flex-basis:82vw;max-height:calc(100vh - 230px)}
   .head .btn.pri{display:none}
 }
+.tcard .tlink{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--fg)}
+.tcard>.btn{margin-top:6px;justify-content:center}

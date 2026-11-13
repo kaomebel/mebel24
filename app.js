@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.4";
+const APP_VERSION = "1.5";
 const CHANGELOG = [
+  ["1.5", "13.11.2026", ["«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari", "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash"]],
   ["1.4", "13.11.2026", ["Vazifalar Trello'dagidek ustunlarda: har bir bosqich alohida ustun", "Yangi «Jarayonlar» bo'limi: hamma loyihalar qaysi bosqichda ekani bitta doskada", "Pastki menyu: Bosh, Vazifalar, Jarayonlar, Ko'rsatkichlar, Menyu", "Yangi versiya chiqqanda ilovada xabar va «Yangilash» tugmasi"]],
   ["1.3", "13.11.2026", ["Bitta xodimga bir nechta vazifa (rol) berish", "Yangi vazifa: Shofyor (haydovchi)"]],
   ["1.2", "13.11.2026", ["Kirishda faqat login va parol", "Bosh sahifa soddalashtirildi"]],
@@ -169,6 +170,8 @@ function render(){
   window.scrollTo(0, sy);
   if (fid){ const el = document.getElementById(fid); if (el){ try { el.focus({preventScroll:true}); if (sel && el.setSelectionRange) el.setSelectionRange(sel[0], sel[1]); } catch (e) {} } }
   if (UI.modal !== UI.modalShown) renderModal();
+  // Doskada birinchi ishli ustunga surib qo'yish (bo'sh ustunlar oldinda bo'lsa)
+  document.querySelectorAll(".board.tb").forEach(bd => { const c = [...bd.querySelectorAll(".col")].find(x => x.querySelector(".tcard")); if (c && bd.scrollLeft === 0 && c !== bd.firstElementChild) bd.scrollLeft = Math.max(0, c.offsetLeft - bd.offsetLeft - 16); });
 }
 function shellHTML(){
   if (!navAllowed(UI.route.split("-")[0]) && !UI.route.startsWith("p-")) UI.route = "bosh";
@@ -290,13 +293,33 @@ function vVazifalar(){
   if (late || tod) h += `<div class="chips" style="margin-bottom:12px">${late ? pill(late + " ta kechikkan", "bad") : ""} ${tod ? pill(tod + " ta bugun", "warn") : ""}</div>`;
   return h + boardHTML(stageCols(t, x => x.p), x => tcard(x.p, x.s), {hideEmpty:true});
 }
+/* Ishlab chiqarish ichki qadamlari: ustun = birinchi bajarilmagan qadam */
+const PROD_COLS = [["material","Material olinadi"],["kesishga","Kesishga beriladi"],["kesildi","Kesilmoqda"],["kromka","Kromkada"],["rover","Roverda"],["keltirildi","Sexga keltiriladi"],["furnitura","Furnitura olinadi"],["tayyor","Yig'ishga tayyor"]];
+function prodStep(p){ const steps = PROD_CHECKS.filter(([k]) => k !== "rover" || p.prod?.rover); const nx = steps.find(([k]) => !p.prod?.checks?.[k]); return nx ? nx[0] : "tayyor"; }
+function pcard(p){
+  const k = prodStep(p); const lbl = PROD_CHECKS.find(x => x[0] === k)?.[1]; const pr = stageProgress(p); const pz = p.prod || {};
+  const svc = k === "kesishga" || k === "kesildi" ? pz.cutService : k === "kromka" ? pz.edgeService : k === "rover" ? pz.roverService : "";
+  const dl = p.sale?.deadline; const dlLate = dl && dl < today();
+  return `<div class="tcard"><a class="tlink" href="#p-${p.id}" data-act="openFrom"><div class="pc-top"><span class="mono muted">${pno(p)}</span>${dl ? `<span class="t2 ${dlLate ? "bad-t" : ""}">${fdate(dl)}</span>` : ""}</div>
+    <div class="t1">${esc(projectTitle(p))}</div><div class="t2">${esc(needText(p))}${svc ? " · " + esc(svcName(svc)) : ""}${k === "kesildi" && pz.saw ? " · " + esc(pz.saw) : ""}${k === "kromka" && pz.edgeType ? " · " + esc(pz.edgeType) + (pz.double ? " dvaynoy" : "") : ""}</div>
+    ${pr ? `<div class="mini"><div class="bar"><i style="width:${pr[1] ? pr[0] / pr[1] * 100 : 0}%"></i></div><span>${pr[0]}/${pr[1]}</span></div>` : ""}</a>
+    ${k !== "tayyor" ? `<button class="btn sm" data-act="prodNext" data-id="${p.id}" data-k="${k}">${ic("check", 14)} ${esc(lbl)}</button>` : `<button class="btn sm pri" data-act="toAsm" data-id="${p.id}">Yig'ishga o'tkazish →</button>`}</div>`;
+}
 function vJarayonlar(){
   const me = ST.me.id;
   let list = ST.projects.filter(p => p.status === "faol" || p.status === "kutish");
   if (UI.jmine) list = list.filter(p => { const s = nextStep(p); return p.sellerId === me || p.managerId === me || s?.who === me || (s?.all || []).includes(me); });
   list.sort((a, b) => (a.sale?.deadline || "9999").localeCompare(b.sale?.deadline || "9999"));
-  let h = `<div class="head"><div><h1>Jarayonlar</h1><p class="muted">Har bir loyiha qaysi bosqichda ketyapti: leaddan topshirishgacha</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
-  h += `<div class="chips" style="margin-bottom:12px"><button class="chip ${!UI.jmine ? "on" : ""}" data-act="jmine" data-v="">Hamma loyihalar <b>${ST.projects.filter(p => p.status === "faol" || p.status === "kutish").length}</b></button><button class="chip ${UI.jmine ? "on" : ""}" data-act="jmine" data-v="1">Mening loyihalarim</button></div>`;
+  const prod = UI.jview === "ishlab";
+  let h = `<div class="head"><div><h1>Jarayonlar</h1><p class="muted">${prod ? "Ishlab chiqarishdagi loyihalar qaysi qadamda: materialdan yig'ishgacha" : "Har bir loyiha qaysi bosqichda ketyapti: leaddan topshirishgacha"}</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  const nProd = list.filter(p => p.status === "faol" && p.stage === "ishlab").length;
+  h += `<div class="toolbar" style="flex-wrap:wrap"><div class="mode"><button class="${!prod ? "on" : ""}" data-act="jview" data-v="">Hamma bosqichlar</button><button class="${prod ? "on" : ""}" data-act="jview" data-v="ishlab">Ishlab chiqarish (${nProd})</button></div>
+    <div class="chips"><button class="chip ${!UI.jmine ? "on" : ""}" data-act="jmine" data-v="">Hamma loyihalar</button><button class="chip ${UI.jmine ? "on" : ""}" data-act="jmine" data-v="1">Mening loyihalarim</button></div></div>`;
+  if (prod){
+    const ps = list.filter(p => p.status === "faol" && p.stage === "ishlab");
+    const cols = PROD_COLS.filter(([k]) => k !== "rover" || ps.some(p => p.prod?.rover)).map(([k, n]) => ({k, n, cls:"st-ishlab", items:ps.filter(p => prodStep(p) === k)}));
+    return h + boardHTML(cols, pcard);
+  }
   return h + boardHTML(stageCols(list), p => tcard(p, nextStep(p)));
 }
 
@@ -620,6 +643,8 @@ const ACT = {
   lview: e => { UI.lview = e.dataset.v; render(); },
   ptab: e => { UI.ptab = e.dataset.v; render(); },
   jmine: e => { UI.jmine = !!e.dataset.v; render(); },
+  jview: e => { UI.jview = e.dataset.v; render(); },
+  prodNext: async e => { const p = getP(e.dataset.id); const k = e.dataset.k; p.prod = {...(p.prod || {})}; p.prod.checks = {...(p.prod.checks || {}), [k]:{by:ST.me.name, d:fdate(today())}}; log(p, "Bajarildi: " + (PROD_CHECKS.find(x => x[0] === k)?.[1] || k)); try { await saveP(p, (PROD_CHECKS.find(x => x[0] === k)?.[1] || "") + " — belgilandi"); } catch (x) { toast(x.message); } },
   openFrom: e => { UI.from = UI.route.startsWith("p-") ? UI.from : UI.route; location.hash = e.getAttribute("href").slice(1); },
   checkUpd: async () => { await checkVersion(true); },
   doUpdate: async () => { try { const r = await navigator.serviceWorker?.getRegistration?.(); if (r) await r.update(); } catch (x) {} location.reload(); },
