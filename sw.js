@@ -1,7 +1,7 @@
 // Mebel 24: ilova fayllari keshda saqlanadi, internet sekin yoki yo'q bo'lsa ham tez ochiladi.
 // Ma'lumotlar (Supabase) keshlanmaydi: ular har doim serverdan olinadi.
-const CACHE = "mebel24-v1";
-const FILES = ["./", "index.html", "styles.css", "config.js", "vendor/supabase.js", "backend.js", "seed.js", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
+const CACHE = "mebel24-v2";
+const FILES = ["./", "index.html", "styles.css", "config.js", "vendor/supabase.js", "backend.js", "seed.js", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png", "icons/logo-mark.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

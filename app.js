@@ -161,7 +161,7 @@ function shellHTML(){
   const nav = NAV.filter(n => navAllowed(n[0]));
   const cnt = {vazifalar: myTasks().length, loyihalar: ST.projects.filter(p => p.status === "faol").length};
   const cur = UI.route.startsWith("p-") ? "loyihalar" : UI.route;
-  const side = `<aside class="side"><div class="brand"><span class="mark">${ic("loyihalar", 18)}</span><div><b>${esc(APP)}</b><small>${esc(ST.settings.company || "Loyihalar boshqaruvi")}</small></div></div>
+  const side = `<aside class="side"><div class="brand"><span class="mark"><img src="icons/logo-mark.png" alt="Mebel 24"></span><div><b>${esc(APP)}</b><small>${esc(ST.settings.company || "Loyihalar boshqaruvi")}</small></div></div>
     <button class="btn pri big" data-act="newProject" style="width:100%;justify-content:center">${ic("plus", 18)} Yangi loyiha</button>
     <nav>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span>${cnt[k] ? `<em>${cnt[k]}</em>` : ""}</a>`).join("")}</nav>
     <div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(ROLES[role()]?.n || "")}</small></div><button class="iconbtn" data-act="logout" title="Chiqish" aria-label="Chiqish">${ic("out")}</button></div></aside>`;
@@ -182,7 +182,7 @@ function loginHTML(){
   const m = UI.loginMode;
   const demo = B.mode === "local" && !boot ? `<div class="demo-logins"><div class="small muted">Sinov uchun tayyor loginlar (bosing):</div>${(UI.loginMode === "admin" ? [["admin","123456","Administrator"]] : [["dilshod","111111","Sotuvchi"],["jasur","222222","O'lchovchi"],["nodira","333333","Texnolog"],["bekzod","444444","Menejer"],["rustam","555555","Yig'uvchi"]]).map(([l, pw, r]) => `<button class="chip" data-act="demoFill" data-l="${l}" data-p="${pw}">${l} · ${r}</button>`).join("")}</div>` : "";
   return `<div class="login"><div class="login-card">
-    <div class="brand big"><span class="mark">${ic("loyihalar", 22)}</span><div><b>${esc(APP)}</b><small>${esc(ST.settings?.company || "Mebel loyihalari boshqaruvi")}</small></div></div>
+    <div class="brand big"><span class="mark"><img src="icons/logo-mark.png" alt="Mebel 24"></span><div><b>${esc(APP)}</b><small>${esc(ST.settings?.company || "Mebel loyihalari boshqaruvi")}</small></div></div>
     ${boot ? `<h1>Birinchi administrator</h1><p class="muted">Tizimda hali hech kim yo'q. Administrator hisobini yarating: keyin u xodimlarni qo'shadi.</p>
       <form id="bootForm" class="stack"><div class="fld"><label for="b-name">Ismingiz</label><input class="inp" id="b-name" name="name" required autocomplete="name"></div>
       <div class="fld"><label for="b-login">Login</label><input class="inp" id="b-login" name="login" required autocomplete="username" autocapitalize="none" placeholder="masalan: admin"></div>
