@@ -220,8 +220,8 @@ function vBosh(){
   const due = ST.projects.filter(p => p.status === "kutish" && p.decision?.followup && p.decision.followup <= today());
   const monthLeads = ST.projects.filter(p => inPeriod(p.created_at, "oy"));
   const monthSold = ST.projects.filter(p => inPeriod(p.sale?.date, "oy"));
-  const hi = new Date().getHours(); const greet = hi < 11 ? "Xayrli tong" : hi < 17 ? "Xayrli kun" : "Xayrli kech";
-  let h = installHTML() + `<div class="head"><div><h1>${greet}, ${esc(ST.me.name.split(" ")[0])}</h1><p class="muted">${fdate(today())} · ${esc(ROLES[role()].n)}</p></div><button class="btn pri hide-m" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+
+  let h = installHTML();
   const k = [];
   k.push(["Vazifalarim", tasks.length, "", "#vazifalar"]);
   k.push(["Jarayondagi loyihalar", act.length, "", "#loyihalar"]);
