@@ -263,3 +263,28 @@ textarea.inp{resize:vertical}
 .install b{display:block}
 .install ol{margin:6px 0 0;padding-left:18px;font-size:13.5px}
 [data-chips]:not([data-single]) .chip.on::before{content:"✓";margin-right:6px;font-weight:700}
+
+/* ===== Trello uslubidagi doska ===== */
+.board.tb{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.board.tb .col{flex:0 0 272px;max-height:calc(100vh - 210px);display:flex;flex-direction:column;padding:0;gap:0;min-height:0;scroll-snap-align:start;border-top:3px solid var(--sc,var(--line))}
+.board.tb .col-h{display:flex;align-items:center;gap:8px;padding:10px 12px 8px}
+.board.tb .col-h b{flex:1;font-size:14px}
+.board.tb .col-h .cnt{font-size:12px;font-weight:700;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:0 8px;line-height:20px}
+.col-b{display:flex;flex-direction:column;gap:8px;padding:0 8px 10px;overflow-y:auto}
+.col-empty{color:var(--muted);font-size:13px;text-align:center;padding:14px 0;border:1px dashed var(--line);border-radius:10px}
+.tcard{display:flex;flex-direction:column;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 11px;text-decoration:none;color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.tcard:hover{border-color:var(--muted)}
+.mini{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mini .bar{flex:1;height:6px}
+/* ===== Yangilanish va yangiliklar ===== */
+.upd{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent);color:var(--accent-ink);padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.upd ul{margin:4px 0 0;padding-left:18px;font-size:13.5px}
+.upd .btn{border-color:transparent}
+.upd .btn.pri{background:var(--accent-ink);color:var(--accent)}
+.news{padding:8px 0;border-bottom:1px solid var(--line2)} .news:last-child{border-bottom:0}
+.news ul{margin:4px 0 0;padding-left:18px;font-size:14px}
+@media (max-width:860px){
+  .board.tb{margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));scroll-padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .board.tb .col{flex-basis:82vw;max-height:calc(100vh - 230px)}
+  .head .btn.pri{display:none}
+}

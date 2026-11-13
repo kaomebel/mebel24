@@ -5,6 +5,14 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
+const APP_VERSION = "1.4";
+const CHANGELOG = [
+  ["1.4", "13.11.2026", ["Vazifalar Trello'dagidek ustunlarda: har bir bosqich alohida ustun", "Yangi «Jarayonlar» bo'limi: hamma loyihalar qaysi bosqichda ekani bitta doskada", "Pastki menyu: Bosh, Vazifalar, Jarayonlar, Ko'rsatkichlar, Menyu", "Yangi versiya chiqqanda ilovada xabar va «Yangilash» tugmasi"]],
+  ["1.3", "13.11.2026", ["Bitta xodimga bir nechta vazifa (rol) berish", "Yangi vazifa: Shofyor (haydovchi)"]],
+  ["1.2", "13.11.2026", ["Kirishda faqat login va parol", "Bosh sahifa soddalashtirildi"]],
+  ["1.1", "13.11.2026", ["Yangi Mebel 24 logotipi"]],
+  ["1.0", "11.11.2026", ["Birinchi versiya: loyihalar, sotuv, moliya, uslugalar, xodimlar"]]
+];
 
 /* ---------------- Spravochniklar ---------------- */
 const ROLES = {
@@ -41,13 +49,15 @@ const EDGE_TYPES = ["0.4 mm","1 mm","2 mm"];
 const COMPLAINTS = [["sifat","Sifat"],["muddat","Muddat kechikdi"],["rang","Rang yoki material"],["olcham","O'lcham"],["furnitura","Furnitura"],["ornatish","O'rnatish"],["tozalik","Tozalik"],["muomala","Xodimlar muomalasi"],["boshqa","Boshqa"]];
 const PROD_CHECKS = [["material","Material sotib olindi"],["kesishga","Kesishga berildi"],["kesildi","Kesildi"],["kromka","Kromkalandi"],["rover","Rover qilindi"],["keltirildi","Sexga keltirildi"],["furnitura","Furnitura olindi"]];
 const NAV = [
-  ["bosh","Bosh sahifa","all"],["vazifalar","Vazifalarim","all"],["loyihalar","Loyihalar","all"],
+  ["bosh","Bosh sahifa","all"],["vazifalar","Vazifalarim","all"],["jarayonlar","Jarayonlar","all"],["loyihalar","Loyihalar","all"],
   ["sotuv","Sotuv",["admin","menejer","sotuvchi"]],["moliya","Moliya",FIN_ROLES],["uslugalar","Uslugalar",["admin","menejer","taminot"]],
   ["xodimlar","Xodimlar",["admin"]],["sozlamalar","Sozlamalar","all"]
 ];
 const ICON = {
   bosh:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   vazifalar:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  jarayonlar:'<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/>',
+  korsatkich:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   loyihalar:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/>',
   sotuv:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   moliya:'<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/>',
@@ -163,21 +173,21 @@ function render(){
 function shellHTML(){
   if (!navAllowed(UI.route.split("-")[0]) && !UI.route.startsWith("p-")) UI.route = "bosh";
   const nav = NAV.filter(n => navAllowed(n[0]));
-  const cnt = {vazifalar: myTasks().length, loyihalar: ST.projects.filter(p => p.status === "faol").length};
-  const cur = UI.route.startsWith("p-") ? "loyihalar" : UI.route;
+  const cnt = {vazifalar: myTasks().length, jarayonlar: ST.projects.filter(p => p.status === "faol").length};
+  const cur = UI.route.startsWith("p-") ? (UI.from || "jarayonlar") : UI.route;
   const side = `<aside class="side"><div class="brand"><span class="mark"><img src="icons/logo-mark.png" alt="Mebel 24"></span><div><b>${esc(APP)}</b><small>${esc(ST.settings.company || "Loyihalar boshqaruvi")}</small></div></div>
     <button class="btn pri big" data-act="newProject" style="width:100%;justify-content:center">${ic("plus", 18)} Yangi loyiha</button>
     <nav>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span>${cnt[k] ? `<em>${cnt[k]}</em>` : ""}</a>`).join("")}</nav>
     <div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(roleNames(ST.me))}</small></div><button class="iconbtn" data-act="logout" title="Chiqish" aria-label="Chiqish">${ic("out")}</button></div></aside>`;
-  const bottom = ["bosh","vazifalar","new","loyihalar","menu"].map(k => k === "new" ? `<button class="tabnew" data-act="newProject" aria-label="Yangi loyiha">${ic("plus", 26)}</button>`
-    : k === "menu" ? `<button class="tab ${UI.menu ? "on" : ""}" data-act="menu">${ic("menu")}<span>Menyu</span></button>`
-    : `<a class="tab ${cur === k ? "on" : ""}" href="#${k}">${ic(k)}<span>${k === "bosh" ? "Bosh" : k === "vazifalar" ? "Vazifalar" : "Loyihalar"}</span>${cnt[k] ? `<em>${cnt[k]}</em>` : ""}</a>`).join("");
-  const menu = UI.menu ? `<div class="sheet-scrim" data-act="menu"></div><div class="sheet"><div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(roleNames(ST.me))}</small></div></div>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span></a>`).join("")}<button class="sheet-out" data-act="logout">${ic("out")} Chiqish</button></div>` : "";
+  const kTarget = navAllowed("sotuv") ? "sotuv" : navAllowed("moliya") ? "moliya" : "loyihalar";
+  const tabs = [["bosh","bosh","Bosh"],["vazifalar","vazifalar","Vazifalar"],["jarayonlar","jarayonlar","Jarayonlar"],["korsatkich",kTarget,kTarget === "loyihalar" ? "Loyihalar" : "Ko'rsatkichlar"]];
+  const bottom = tabs.map(([icn, href, lbl]) => `<a class="tab ${cur === href ? "on" : ""}" href="#${href}">${ic(icn)}<span>${lbl}</span>${cnt[href] ? `<em>${cnt[href]}</em>` : ""}</a>`).join("") + `<button class="tab ${UI.menu ? "on" : ""}" data-act="menu">${ic("menu")}<span>Menyu</span></button>`;
+  const menu = UI.menu ? `<div class="sheet-scrim" data-act="menu"></div><div class="sheet"><div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(roleNames(ST.me))}</small></div></div><button class="btn pri big" data-act="newProject" style="margin:4px 0 8px">${ic("plus", 18)} Yangi loyiha</button>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span></a>`).join("")}<button class="sheet-out" data-act="logout">${ic("out")} Chiqish</button></div>` : "";
   let view = "";
   try { view = UI.route.startsWith("p-") ? vProject(UI.route.slice(2)) : (VIEWS[UI.route] || VIEWS.bosh)(); }
   catch (e) { console.error(e); view = `<div class="card pad"><h2>Bu bo'limda xato</h2><p class="muted">Boshqa bo'limga o'tib qayting.</p><pre class="mono small">${esc(e.stack || e)}</pre></div>`; }
   const demo = B.mode === "local" ? `<div class="demo">Sinov rejimi: ma'lumotlar faqat shu brauzerda saqlanadi.</div>` : "";
-  return `${demo}<div class="shell">${side}<main class="main"><div class="wrap">${view}</div></main></div><nav class="bottom">${bottom}</nav>${menu}`;
+  return `${demo}${updateBannerHTML()}<div class="shell">${side}<main class="main"><div class="wrap">${view}</div></main></div><nav class="bottom">${bottom}</nav>${menu}`;
 }
 
 /* ---------------- Kirish ---------------- */
@@ -248,13 +258,46 @@ function taskRow({p, s}){
   const late = s.due && s.due < today(), dueToday = s.due === today();
   return `<a class="row" href="#p-${p.id}"><span class="stdot st-${p.status === "kutish" ? "kutish" : p.stage}"></span><div class="grow"><div class="t1">${esc(s.t)}</div><div class="t2">${pno(p)} · ${esc(projectTitle(p))} · ${esc(needText(p))}</div></div>${late ? pill("kechikdi", "bad") : dueToday ? pill("bugun", "warn") : s.due ? `<span class="t2 nowrap">${fdate(s.due)}</span>` : ""}</a>`;
 }
+/* Trello uslubidagi doska: ustunlar = bosqichlar */
+function boardHTML(cols, cardFn, opts = {}){
+  const shown = opts.hideEmpty ? cols.filter(c => c.items.length) : cols;
+  return `<div class="board tb">${shown.map(c => `<section class="col ${c.cls || ""}"><div class="col-h"><span class="stdot ${c.cls || ""}"></span><b>${esc(c.n)}</b><span class="cnt">${c.items.length}</span></div><div class="col-b">${c.items.map(cardFn).join("") || `<div class="col-empty">Bo'sh</div>`}</div></section>`).join("")}</div>`;
+}
+function stageCols(list, getP = x => x){
+  return [{k:"kutish", n:"Qayta aloqa", cls:"st-kutish", items:list.filter(x => getP(x).status === "kutish")},
+    ...STAGES.map(st => ({k:st.k, n:st.n, cls:"st-" + st.k, items:list.filter(x => getP(x).status === "faol" && getP(x).stage === st.k)}))];
+}
+function stageProgress(p){
+  if (p.stage === "ishlab"){ const all = PROD_CHECKS.filter(([k]) => k !== "rover" || p.prod?.rover); const d = all.filter(([k]) => p.prod?.checks?.[k]).length; return [d, all.length]; }
+  if (p.stage === "loyiha"){ const all = [p.sale?.model3d ? "model3d" : null, "parts", "furn"].filter(Boolean); return [all.filter(k => p.design?.checks?.[k]).length, all.length]; }
+  if (p.stage === "topshirish"){ const u = p.hand?.unfinished || []; return u.length ? [u.filter(x => x.done).length, u.length] : null; }
+  return null;
+}
+function tcard(p, s){
+  const due = s?.due; const late = due && due < today(); const pr = stageProgress(p);
+  const dl = p.sale?.deadline; const dlLate = dl && dl < today() && p.status === "faol";
+  return `<a class="tcard" href="#p-${p.id}" data-act="openFrom"><div class="pc-top"><span class="mono muted">${pno(p)}</span>${late ? pill("kechikdi", "bad") : due === today() ? pill("bugun", "warn") : due ? `<span class="t2">${fdate(due)}</span>` : ""}</div>
+    <div class="t1">${esc(projectTitle(p))}</div><div class="t2">${esc(needText(p))}</div>
+    ${s ? `<div class="pc-next">${ic("check", 14)} ${esc(s.t)}${s.who ? ` · ${esc(userName(s.who))}` : ""}</div>` : ""}
+    ${pr ? `<div class="mini"><div class="bar"><i style="width:${pr[1] ? pr[0] / pr[1] * 100 : 0}%"></i></div><span>${pr[0]}/${pr[1]}</span></div>` : ""}
+    ${dl ? `<div class="t2 ${dlLate ? "bad-t" : ""}">Muddat: ${fdate(dl)}</div>` : ""}</a>`;
+}
 function vVazifalar(){
   const t = myTasks();
-  const groups = [["Muddati o'tgan", x => x.s.due && x.s.due < today()], ["Bugun", x => x.s.due === today()], ["Keyingi", x => !x.s.due || x.s.due > today()]];
-  let h = `<div class="head"><div><h1>Vazifalarim</h1><p class="muted">Sizga biriktirilgan loyihalar va navbatdagi qadam</p></div></div>`;
-  if (!t.length) return h + `<div class="card"><div class="empty"><h3>Vazifa yo'q</h3><p>Yangi lead qo'shish uchun «+ Yangi loyiha» tugmasini bosing.</p><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div></div>`;
-  groups.forEach(([n, f]) => { const g = t.filter(f); if (g.length) h += `<div class="card"><div class="card-h"><h2>${n} <span class="muted">${g.length}</span></h2></div><div class="list">${g.map(taskRow).join("")}</div></div>`; });
-  return h;
+  let h = `<div class="head"><div><h1>Vazifalarim</h1><p class="muted">Sizga biriktirilgan ishlar bosqichlar bo'yicha. Kartani bosing — loyiha ochiladi</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  if (!t.length) return h + `<div class="card"><div class="empty"><h3>Vazifa yo'q</h3><p>Sizga biriktirilgan ish hozircha yo'q.</p></div></div>`;
+  const late = t.filter(x => x.s.due && x.s.due < today()).length, tod = t.filter(x => x.s.due === today()).length;
+  if (late || tod) h += `<div class="chips" style="margin-bottom:12px">${late ? pill(late + " ta kechikkan", "bad") : ""} ${tod ? pill(tod + " ta bugun", "warn") : ""}</div>`;
+  return h + boardHTML(stageCols(t, x => x.p), x => tcard(x.p, x.s), {hideEmpty:true});
+}
+function vJarayonlar(){
+  const me = ST.me.id;
+  let list = ST.projects.filter(p => p.status === "faol" || p.status === "kutish");
+  if (UI.jmine) list = list.filter(p => { const s = nextStep(p); return p.sellerId === me || p.managerId === me || s?.who === me || (s?.all || []).includes(me); });
+  list.sort((a, b) => (a.sale?.deadline || "9999").localeCompare(b.sale?.deadline || "9999"));
+  let h = `<div class="head"><div><h1>Jarayonlar</h1><p class="muted">Har bir loyiha qaysi bosqichda ketyapti: leaddan topshirishgacha</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  h += `<div class="chips" style="margin-bottom:12px"><button class="chip ${!UI.jmine ? "on" : ""}" data-act="jmine" data-v="">Hamma loyihalar <b>${ST.projects.filter(p => p.status === "faol" || p.status === "kutish").length}</b></button><button class="chip ${UI.jmine ? "on" : ""}" data-act="jmine" data-v="1">Mening loyihalarim</button></div>`;
+  return h + boardHTML(stageCols(list), p => tcard(p, nextStep(p)));
 }
 
 /* ---------------- Loyihalar ro'yxati ---------------- */
@@ -291,7 +334,7 @@ function vProject(id){
   if (!p) return `<div class="card"><div class="empty"><h3>Loyiha topilmadi</h3><a class="btn" href="#loyihalar">Loyihalarga qaytish</a></div></div>`;
   const st = STATUS[p.status]; const price = projectPrice(p), extra = projectExtra(p), paid = projectPaid(p), cost = projectCost(p);
   const cur = SK[p.stage]?.i ?? 0;
-  let h = `<div class="phead"><a class="iconbtn" href="#loyihalar" aria-label="Orqaga">${ic("back")}</a><div class="grow"><div class="mono muted small">${pno(p)} · ${fdate(p.created_at)}</div><h1>${esc(projectTitle(p))}</h1>
+  let h = `<div class="phead"><a class="iconbtn" href="#${UI.from || "jarayonlar"}" aria-label="Orqaga">${ic("back")}</a><div class="grow"><div class="mono muted small">${pno(p)} · ${fdate(p.created_at)}</div><h1>${esc(projectTitle(p))}</h1>
     <div class="ph-line"><span class="phone">${esc(p.client?.phone || "")}</span>${p.client?.phone ? `<button class="iconbtn sm" data-act="copy" data-v="${esc(p.client.phone)}" aria-label="Nusxa">${ic("copy", 16)}</button>` : ""}${p.client?.phone2 ? `<span class="phone">${esc(p.client.phone2)}</span>` : ""}${pill(st[0], st[1])}</div>
     <div class="t2">${esc(needText(p))}${p.client?.address ? " · " + esc(p.client.address) : ""}${p.client?.source ? " · manba: " + esc(p.client.source) : ""}</div></div>
     <button class="btn sm" data-act="editClient" data-id="${p.id}">${ic("edit", 16)} Tahrirlash</button></div>`;
@@ -515,10 +558,10 @@ function vSozlamalar(){
   let h = `<div class="head"><div><h1>Sozlamalar</h1></div></div>`;
   h += `<div class="grid2"><div class="card"><div class="card-h"><h2>Mening profilim</h2></div>${kv([["Ism", esc(ST.me.name)], ["Login", `<span class="mono">${esc(ST.me.login)}</span>`], ["Rol", esc(roleNames(ST.me))]])}<div class="actions"><button class="btn" data-act="myPass">Parolni o'zgartirish</button><button class="btn danger" data-act="logout">Chiqish</button></div></div>`;
   if (isRole("admin")) h += `<div class="card"><div class="card-h"><h2>Korxona</h2></div><form id="setForm" class="stack"><div class="fld"><label for="s-co">Korxona nomi</label><input class="inp" id="s-co" name="company" value="${esc(ST.settings.company || "")}"></div><div class="fld"><label for="s-days">Odatiy tayyorlash muddati (kun)</label><input class="inp" id="s-days" name="defaultDays" inputmode="numeric" value="${esc(ST.settings.defaultDays || 25)}"></div><button class="btn pri" type="submit">Saqlash</button></form></div>`;
-  h += `</div>` + installHTML(true) + `<div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Versiya", "1.0"]])}${B.mode === "local" && isRole("admin") ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
+  h += `</div>` + installHTML(true) + `<div class="card"><div class="card-h"><h2>Yangiliklar</h2><span class="t2">versiya ${APP_VERSION}</span></div>${CHANGELOG.map(([v, d, items]) => `<div class="news"><b>${esc(v)}</b> <span class="t2">${esc(d)}</span><ul>${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div><div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Versiya", APP_VERSION], ["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Yangilanish", `<button class="btn sm" data-act="checkUpd">Yangi versiyani tekshirish</button>`]])}${B.mode === "local" && isRole("admin") ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
   return h;
 }
-const VIEWS = {bosh:vBosh, vazifalar:vVazifalar, loyihalar:vLoyihalar, sotuv:vSotuv, moliya:vMoliya, uslugalar:vUslugalar, xodimlar:vXodimlar, sozlamalar:vSozlamalar};
+const VIEWS = {bosh:vBosh, vazifalar:vVazifalar, jarayonlar:vJarayonlar, loyihalar:vLoyihalar, sotuv:vSotuv, moliya:vMoliya, uslugalar:vUslugalar, xodimlar:vXodimlar, sozlamalar:vSozlamalar};
 
 /* ---------------- Modal va shakllar ---------------- */
 const fld = (label, name, val = "", o = {}) => {
@@ -576,6 +619,11 @@ const ACT = {
   lstage: e => { UI.lstage = e.dataset.v; render(); },
   lview: e => { UI.lview = e.dataset.v; render(); },
   ptab: e => { UI.ptab = e.dataset.v; render(); },
+  jmine: e => { UI.jmine = !!e.dataset.v; render(); },
+  openFrom: e => { UI.from = UI.route.startsWith("p-") ? UI.from : UI.route; location.hash = e.getAttribute("href").slice(1); },
+  checkUpd: async () => { await checkVersion(true); },
+  doUpdate: async () => { try { const r = await navigator.serviceWorker?.getRegistration?.(); if (r) await r.update(); } catch (x) {} location.reload(); },
+  hideUpdate: () => { UI.updHidden = UI.newVer?.version; render(); },
   gotoStage: e => { UI.ltab = "faol"; UI.lstage = e.dataset.v; location.hash = "loyihalar"; },
   copy: e => { const v = e.dataset.v; navigator.clipboard?.writeText(v).then(() => toast("Nusxa olindi: " + v), () => toast(v)); },
   copySmeta: e => { const p = ST.projects.find(x => x.id === e.dataset.id); const ex = ST.expenses.filter(x => x.project_id === p.id); const rev = projectPrice(p) + projectExtra(p), c = sum(ex, x => x.amount);
@@ -779,6 +827,23 @@ document.addEventListener("keydown", ev => { if (ev.key === "Escape" && UI.modal
 function route(){ UI.route = location.hash.slice(1) || "bosh"; UI.menu = false; if (!UI.route.startsWith("p-")) UI.ptab = "jarayon"; render(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", route);
 
+/* ---------------- Yangilanish ---------------- */
+async function checkVersion(manual){
+  try {
+    const r = await fetch("version.json?t=" + Date.now(), {cache:"no-store"});
+    if (!r.ok) throw 0;
+    const j = await r.json();
+    if (j.version && j.version !== APP_VERSION){ UI.newVer = j; render(); if (manual) toast("Yangi versiya bor: " + j.version); }
+    else if (manual) toast("Sizda eng so'nggi versiya: " + APP_VERSION);
+  } catch (e) { if (manual) toast("Tekshirib bo'lmadi. Internetni tekshiring"); }
+}
+function updateBannerHTML(){
+  const v = UI.newVer; if (!v || UI.updHidden === v.version) return "";
+  return `<div class="upd"><div><b>Yangi versiya ${esc(v.version)} tayyor</b>${(v.notes || []).length ? `<ul>${v.notes.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}</div><div class="actions" style="margin:0"><button class="btn pri" data-act="doUpdate">Yangilash</button><button class="btn sm" data-act="hideUpdate">Keyinroq</button></div></div>`;
+}
+setInterval(() => { if (ST.me) checkVersion(); }, 5 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && ST.me) checkVersion(); });
+
 /* ---------------- Ishga tushirish ---------------- */
 async function start(){
   $("#root").innerHTML = `<div class="login"><div class="muted">Yuklanmoqda…</div></div>`;
@@ -792,4 +857,5 @@ async function start(){
   if (ST.me) await reload(); else render();
   UI.route = location.hash.slice(1) || "bosh";
   render();
+  setTimeout(() => checkVersion(), 3000);
 }
