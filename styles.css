@@ -262,3 +262,4 @@ textarea.inp{resize:vertical}
 .install{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:10px 14px;margin-bottom:14px}
 .install b{display:block}
 .install ol{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+[data-chips]:not([data-single]) .chip.on::before{content:"✓";margin-right:6px;font-weight:700}

@@ -9,7 +9,7 @@ const APP = "Mebel 24";
 /* ---------------- Spravochniklar ---------------- */
 const ROLES = {
   admin:{n:"Administrator"}, menejer:{n:"Loyiha menejeri"}, sotuvchi:{n:"Sotuvchi"}, olchovchi:{n:"O'lchovchi"},
-  texnolog:{n:"Texnolog / dizayner"}, taminot:{n:"Ta'minotchi"}, yiguvchi:{n:"Yig'uvchi"}, ornatuvchi:{n:"O'rnatuvchi"}, buxgalter:{n:"Buxgalter / kassir"}
+  texnolog:{n:"Texnolog / dizayner"}, taminot:{n:"Ta'minotchi"}, yiguvchi:{n:"Yig'uvchi"}, ornatuvchi:{n:"O'rnatuvchi"}, buxgalter:{n:"Buxgalter / kassir"}, haydovchi:{n:"Shofyor (haydovchi)"}
 };
 const FIN_ROLES = ["admin","buxgalter","menejer"];
 const STAGES = [
@@ -78,10 +78,14 @@ const pill = (t, tone = "") => `<span class="pill ${tone}">${esc(t)}</span>`;
 const pno = p => "№ " + String(p.no || "—").padStart(4, "0");
 const userName = id => ST.users.find(u => u.id === id)?.name || "—";
 const svcName = id => ST.services.find(s => s.id === id)?.name || "—";
+/* Xodimda bir nechta vazifa (rol) bo'lishi mumkin: roles massivi, role — asosiysi */
+const rolesOf = u => (u && Array.isArray(u.roles) && u.roles.length ? u.roles : u && u.role ? [u.role] : []);
+const roleNames = u => rolesOf(u).map(r => ROLES[r]?.n || r).join(", ");
 const role = () => ST.me?.role;
-const isRole = (...r) => r.includes(role());
-const canFin = () => FIN_ROLES.includes(role());
-const navAllowed = k => { const n = NAV.find(x => x[0] === k); return n && (n[2] === "all" || n[2].includes(role())); };
+const myRoles = () => rolesOf(ST.me);
+const isRole = (...r) => r.some(x => myRoles().includes(x));
+const canFin = () => isRole(...FIN_ROLES);
+const navAllowed = k => { const n = NAV.find(x => x[0] === k); return n && (n[2] === "all" || isRole(...n[2])); };
 
 /* ---------------- Holat ---------------- */
 const B = makeBackend();
@@ -130,14 +134,14 @@ function nextStep(p){
   return null;
 }
 function myTasks(){
-  const me = ST.me?.id; const r = role();
+  const me = ST.me?.id;
   return ST.projects.filter(p => {
     const s = nextStep(p); if (!s) return false;
-    if (r === "admin") return true;
+    if (isRole("admin")) return true;
     if (s.who === me || (s.all || []).includes(me) || p.managerId === me && p.status === "faol") return true;
-    if (r === "texnolog" && p.stage === "loyiha" && p.status === "faol" && !p.design?.by) return true;
-    if (r === "taminot" && p.stage === "ishlab" && p.status === "faol") return true;
-    if (r === "olchovchi" && p.stage === "zamer" && p.status === "faol" && !p.zamer?.assignedTo) return true;
+    if (isRole("texnolog") && p.stage === "loyiha" && p.status === "faol" && !p.design?.by) return true;
+    if (isRole("taminot") && p.stage === "ishlab" && p.status === "faol") return true;
+    if (isRole("olchovchi") && p.stage === "zamer" && p.status === "faol" && !p.zamer?.assignedTo) return true;
     return false;
   }).map(p => ({p, s:nextStep(p)})).sort((a, b) => (a.s.due || "9999").localeCompare(b.s.due || "9999"));
 }
@@ -164,11 +168,11 @@ function shellHTML(){
   const side = `<aside class="side"><div class="brand"><span class="mark"><img src="icons/logo-mark.png" alt="Mebel 24"></span><div><b>${esc(APP)}</b><small>${esc(ST.settings.company || "Loyihalar boshqaruvi")}</small></div></div>
     <button class="btn pri big" data-act="newProject" style="width:100%;justify-content:center">${ic("plus", 18)} Yangi loyiha</button>
     <nav>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span>${cnt[k] ? `<em>${cnt[k]}</em>` : ""}</a>`).join("")}</nav>
-    <div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(ROLES[role()]?.n || "")}</small></div><button class="iconbtn" data-act="logout" title="Chiqish" aria-label="Chiqish">${ic("out")}</button></div></aside>`;
+    <div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(roleNames(ST.me))}</small></div><button class="iconbtn" data-act="logout" title="Chiqish" aria-label="Chiqish">${ic("out")}</button></div></aside>`;
   const bottom = ["bosh","vazifalar","new","loyihalar","menu"].map(k => k === "new" ? `<button class="tabnew" data-act="newProject" aria-label="Yangi loyiha">${ic("plus", 26)}</button>`
     : k === "menu" ? `<button class="tab ${UI.menu ? "on" : ""}" data-act="menu">${ic("menu")}<span>Menyu</span></button>`
     : `<a class="tab ${cur === k ? "on" : ""}" href="#${k}">${ic(k)}<span>${k === "bosh" ? "Bosh" : k === "vazifalar" ? "Vazifalar" : "Loyihalar"}</span>${cnt[k] ? `<em>${cnt[k]}</em>` : ""}</a>`).join("");
-  const menu = UI.menu ? `<div class="sheet-scrim" data-act="menu"></div><div class="sheet"><div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(ROLES[role()]?.n)}</small></div></div>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span></a>`).join("")}<button class="sheet-out" data-act="logout">${ic("out")} Chiqish</button></div>` : "";
+  const menu = UI.menu ? `<div class="sheet-scrim" data-act="menu"></div><div class="sheet"><div class="me"><div><b>${esc(ST.me.name)}</b><small>${esc(roleNames(ST.me))}</small></div></div>${nav.map(([k, n]) => `<a href="#${k}" class="${cur === k ? "on" : ""}">${ic(k)}<span>${esc(n)}</span></a>`).join("")}<button class="sheet-out" data-act="logout">${ic("out")} Chiqish</button></div>` : "";
   let view = "";
   try { view = UI.route.startsWith("p-") ? vProject(UI.route.slice(2)) : (VIEWS[UI.route] || VIEWS.bosh)(); }
   catch (e) { console.error(e); view = `<div class="card pad"><h2>Bu bo'limda xato</h2><p class="muted">Boshqa bo'limga o'tib qayting.</p><pre class="mono small">${esc(e.stack || e)}</pre></div>`; }
@@ -302,7 +306,7 @@ function vProject(id){
   if (UI.ptab === "tarix") return h + `<div class="card">${(p.log || []).length ? `<div class="list">${p.log.slice().reverse().map(l => `<div class="row"><div class="grow"><div class="t1">${esc(l.t)}</div><div class="t2">${esc(l.u || "")}</div></div><span class="t2 nowrap">${esc(l.d)}</span></div>`).join("")}</div>` : `<div class="empty">Tarix bo'sh</div>`}</div>`;
   h += currentCard(p);
   h += doneStages(p);
-  if (role() === "admin") h += `<div style="margin-top:20px;text-align:right"><button class="btn sm danger" data-act="delProject" data-id="${p.id}">${ic("trash", 16)} Loyihani o'chirish</button></div>`;
+  if (isRole("admin")) h += `<div style="margin-top:20px;text-align:right"><button class="btn sm danger" data-act="delProject" data-id="${p.id}">${ic("trash", 16)} Loyihani o'chirish</button></div>`;
   return h;
 }
 const kv = rows => `<dl class="kv">${rows.filter(r => r && r[1] !== undefined && r[1] !== "" && r[1] !== null).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("")}</dl>`;
@@ -436,7 +440,7 @@ function smetaCard(p, inline){
     <div class="smeta">${[["Daromad (shartnoma" + (extra ? " + qo'shimcha" : "") + ")", money(rev)], ["Mijoz to'lagan", money(paid)], ["Qarz", money(Math.max(0, rev - paid))], ...(fin ? [["Tannarx (xarajatlar)", money(cost)], ["Foyda", `<b class="${prof >= 0 ? "ok-t" : "bad-t"}">${money(prof)}</b>`], ["Rentabellik", rev ? Math.round(prof / rev * 100) + "%" : "—"]] : [])].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
     ${fin && cats.length ? `<div class="sub">Xarajatlar tarkibi</div><div class="bars">${cats.map(c => { const v = sum(ex.filter(e => e.category === c), e => e.amount); return `<div class="bar-row"><span>${esc(EXP[c]?.n || EXP_GENERAL[c] || c)}</span><div class="bar"><i style="width:${cost ? v / cost * 100 : 0}%"></i></div><b>${money(v)}</b></div>`; }).join("")}</div>` : ""}
     ${!inline ? kv([["Leaddan sotuvgacha", leadDays !== null ? leadDays + " kun" : ""], ["Sotuvdan topshirishgacha", prodDays !== null ? prodDays + " kun" + (p.sale?.deadline ? (hd.date > p.sale.deadline ? " · muddatdan " + daysBetween(p.sale.deadline, hd.date) + " kun kech" : " · muddatida") : "") : ""], ["Mijoz bahosi", hd.satisfied ? {ha:"Hammasidan rozi", qisman:"Qisman rozi", yoq:"Rozi emas"}[hd.satisfied] : ""], ["Norozilik", COMPLAINTS.filter(c => (hd.complaints || []).includes(c[0])).map(c => c[1]).join(", ")], ["Izoh", esc(hd.complaintText || "")]]) : ""}
-    ${!inline && role() === "admin" ? `<div class="actions"><button class="btn sm" data-act="reopen" data-id="${p.id}">Loyihani qayta ochish</button></div>` : ""}</div>`;
+    ${!inline && isRole("admin") ? `<div class="actions"><button class="btn sm" data-act="reopen" data-id="${p.id}">Loyihani qayta ochish</button></div>` : ""}</div>`;
 }
 
 /* ---------------- Sotuv ---------------- */
@@ -502,16 +506,16 @@ function vUslugalar(){
 /* ---------------- Xodimlar ---------------- */
 function vXodimlar(){
   let h = `<div class="head"><div><h1>Xodimlar</h1><p class="muted">Har bir xodimning logini, roli va natijasi</p></div><button class="btn pri" data-act="userEdit" data-id="">+ Xodim</button></div>`;
-  return h + `<div class="card"><div class="tblw"><table class="tbl"><thead><tr><th>Xodim</th><th>Rol</th><th>Login</th><th class="r">Lead</th><th class="r">Sotdi</th><th class="r">Faol vazifa</th><th></th></tr></thead><tbody>${ST.users.map(u => { const leads = ST.projects.filter(p => p.sellerId === u.id).length, sold = ST.projects.filter(p => p.sellerId === u.id && p.sale).length; const tasks = ST.projects.filter(p => { const s = nextStep(p); return s && (s.who === u.id || (s.all || []).includes(u.id)); }).length; return `<tr style="${u.active === false ? "opacity:.5" : ""}"><td><div class="t1">${esc(u.name)}</div><div class="t2">${esc(u.phone || "")}</div></td><td>${pill(ROLES[u.role]?.n || u.role, u.role === "admin" ? "accent" : "")}${u.active === false ? " " + pill("faol emas", "bad") : ""}</td><td class="mono">${esc(u.login)}</td><td class="r">${leads}</td><td class="r">${sold}</td><td class="r">${tasks}</td><td class="r"><button class="btn sm" data-act="userEdit" data-id="${u.id}">Tahrirlash</button></td></tr>`; }).join("")}</tbody></table></div></div>
+  return h + `<div class="card"><div class="tblw"><table class="tbl"><thead><tr><th>Xodim</th><th>Rol</th><th>Login</th><th class="r">Lead</th><th class="r">Sotdi</th><th class="r">Faol vazifa</th><th></th></tr></thead><tbody>${ST.users.map(u => { const leads = ST.projects.filter(p => p.sellerId === u.id).length, sold = ST.projects.filter(p => p.sellerId === u.id && p.sale).length; const tasks = ST.projects.filter(p => { const s = nextStep(p); return s && (s.who === u.id || (s.all || []).includes(u.id)); }).length; return `<tr style="${u.active === false ? "opacity:.5" : ""}"><td><div class="t1">${esc(u.name)}</div><div class="t2">${esc(u.phone || "")}</div></td><td>${rolesOf(u).map(r => pill(ROLES[r]?.n || r, r === "admin" ? "accent" : "")).join(" ")}${u.active === false ? " " + pill("faol emas", "bad") : ""}</td><td class="mono">${esc(u.login)}</td><td class="r">${leads}</td><td class="r">${sold}</td><td class="r">${tasks}</td><td class="r"><button class="btn sm" data-act="userEdit" data-id="${u.id}">Tahrirlash</button></td></tr>`; }).join("")}</tbody></table></div></div>
     <p class="muted small">Har bir xodim ilovaga o'z logini va paroli bilan kiradi. Ilova rolga qarab kerakli bo'limlarni ochadi.</p>`;
 }
 
 /* ---------------- Sozlamalar ---------------- */
 function vSozlamalar(){
   let h = `<div class="head"><div><h1>Sozlamalar</h1></div></div>`;
-  h += `<div class="grid2"><div class="card"><div class="card-h"><h2>Mening profilim</h2></div>${kv([["Ism", esc(ST.me.name)], ["Login", `<span class="mono">${esc(ST.me.login)}</span>`], ["Rol", esc(ROLES[role()].n)]])}<div class="actions"><button class="btn" data-act="myPass">Parolni o'zgartirish</button><button class="btn danger" data-act="logout">Chiqish</button></div></div>`;
-  if (role() === "admin") h += `<div class="card"><div class="card-h"><h2>Korxona</h2></div><form id="setForm" class="stack"><div class="fld"><label for="s-co">Korxona nomi</label><input class="inp" id="s-co" name="company" value="${esc(ST.settings.company || "")}"></div><div class="fld"><label for="s-days">Odatiy tayyorlash muddati (kun)</label><input class="inp" id="s-days" name="defaultDays" inputmode="numeric" value="${esc(ST.settings.defaultDays || 25)}"></div><button class="btn pri" type="submit">Saqlash</button></form></div>`;
-  h += `</div>` + installHTML(true) + `<div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Versiya", "1.0"]])}${B.mode === "local" && role() === "admin" ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
+  h += `<div class="grid2"><div class="card"><div class="card-h"><h2>Mening profilim</h2></div>${kv([["Ism", esc(ST.me.name)], ["Login", `<span class="mono">${esc(ST.me.login)}</span>`], ["Rol", esc(roleNames(ST.me))]])}<div class="actions"><button class="btn" data-act="myPass">Parolni o'zgartirish</button><button class="btn danger" data-act="logout">Chiqish</button></div></div>`;
+  if (isRole("admin")) h += `<div class="card"><div class="card-h"><h2>Korxona</h2></div><form id="setForm" class="stack"><div class="fld"><label for="s-co">Korxona nomi</label><input class="inp" id="s-co" name="company" value="${esc(ST.settings.company || "")}"></div><div class="fld"><label for="s-days">Odatiy tayyorlash muddati (kun)</label><input class="inp" id="s-days" name="defaultDays" inputmode="numeric" value="${esc(ST.settings.defaultDays || 25)}"></div><button class="btn pri" type="submit">Saqlash</button></form></div>`;
+  h += `</div>` + installHTML(true) + `<div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Versiya", "1.0"]])}${B.mode === "local" && isRole("admin") ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
   return h;
 }
 const VIEWS = {bosh:vBosh, vazifalar:vVazifalar, loyihalar:vLoyihalar, sotuv:vSotuv, moliya:vMoliya, uslugalar:vUslugalar, xodimlar:vXodimlar, sozlamalar:vSozlamalar};
@@ -527,7 +531,7 @@ const fld = (label, name, val = "", o = {}) => {
   else inp = `<input class="inp ${o.num ? "r" : ""}" id="${id}" name="${name}" type="${o.type || "text"}" ${o.num ? 'inputmode="decimal"' : ""} value="${esc(val ?? "")}" placeholder="${esc(o.ph || "")}" ${o.req ? "required" : ""} ${o.auto ? `autocomplete="${o.auto}"` : ""}>`;
   return `<div class="fld ${o.full ? "full" : ""}"><label for="${id}">${esc(label)}${o.req ? " *" : ""}</label>${inp}${o.hint ? `<small>${esc(o.hint)}</small>` : ""}</div>`;
 };
-const userOpts = (roles, empty = "— tanlang —") => [["", empty], ...ST.users.filter(u => u.active !== false && (!roles || roles.includes(u.role))).map(u => [u.id, `${u.name} (${ROLES[u.role]?.n || u.role})`])];
+const userOpts = (roles, empty = "— tanlang —") => [["", empty], ...ST.users.filter(u => u.active !== false && (!roles || rolesOf(u).some(r => roles.includes(r)))).map(u => [u.id, `${u.name} (${roleNames(u)})`])];
 function openModal(m){ UI.modal = m; renderModal(); setTimeout(() => { const f = document.querySelector("#modal input:not([type=hidden]):not([type=checkbox]), #modal select, #modal textarea"); if (f && !m.noFocus) f.focus(); }, 40); }
 function closeModal(){ UI.modal = null; renderModal(); }
 function renderModal(){
@@ -600,7 +604,7 @@ const ACT = {
     submit: async v => { p.client = {...p.client, phone:v.phone, phone2:v.phone2, name:v.name, address:v.address, source:v.source}; p.need = {types:v.types, desc:v.desc}; p.sellerId = v.seller || p.sellerId; log(p, "Mijoz ma'lumotlari tahrirlandi"); await saveP(p, "Saqlandi"); }}); },
   approx: e => { const p = getP(e.dataset.id); openModal({title:"Taxminiy narx", body:`<div class="form">${fld("Mijozga aytilgan taxminiy narx", "approx", p.lead?.approxPrice || "", {num:true, full:true})}</div>`, submit: async v => { p.lead = {...p.lead, approxPrice:num(v.approx)}; log(p, "Taxminiy narx: " + money(v.approx)); await saveP(p, "Saqlandi"); }}); },
   toZamer: e => { const p = getP(e.dataset.id); const z = p.zamer || {}; openModal({title:"O'lchovga yuborish", body:`<div class="form">
-      ${fld("Kim o'lchaydi", "who", z.assignedTo || (role() === "olchovchi" ? ST.me.id : ""), {sel:userOpts(["olchovchi","sotuvchi","menejer","admin","texnolog"]), req:true})}${fld("Sana", "date", z.plannedDate || addDays(1), {type:"date"})}${fld("Vaqt", "time", z.plannedTime || "", {ph:"masalan 15:00"})}${fld("Izoh", "note", z.note || "", {area:true, full:true, rows:2})}</div>`,
+      ${fld("Kim o'lchaydi", "who", z.assignedTo || (isRole("olchovchi") ? ST.me.id : ""), {sel:userOpts(["olchovchi","sotuvchi","menejer","admin","texnolog"]), req:true})}${fld("Sana", "date", z.plannedDate || addDays(1), {type:"date"})}${fld("Vaqt", "time", z.plannedTime || "", {ph:"masalan 15:00"})}${fld("Izoh", "note", z.note || "", {area:true, full:true, rows:2})}</div>`,
     submit: async v => { if (!v.who) throw new Error("O'lchovchini tanlang"); p.zamer = {...z, assignedTo:v.who, plannedDate:v.date, plannedTime:v.time, note:v.note}; if (p.stage === "lead"){ p.stage = "zamer"; log(p, `O'lchovga yuborildi: ${userName(v.who)}, ${fdate(v.date)}`); } else log(p, `O'lchov rejasi o'zgardi: ${userName(v.who)}, ${fdate(v.date)}`); await saveP(p, "O'lchov rejalashtirildi"); }}); },
   zamerDone: e => { const p = getP(e.dataset.id); const z = p.zamer || {}; openModal({title:"O'lchov natijasi va aniq narx", wide:true, body:`<div class="form">
       ${fld("O'lchangan sana", "date", z.doneDate || today(), {type:"date"})}${fld("Kim o'lchadi", "by", z.by || z.assignedTo || ST.me.id, {sel:userOpts(null)})}
@@ -652,7 +656,7 @@ const ACT = {
     submit: async v => { if (!(num(v.amount) > 0)) throw new Error("Summani kiriting"); await B.saveExpense({project_id:p.id, date:v.date, category:"yigish", amount:num(v.amount), details:{worker:w.id}, note:v.note}); log(p, `Yig'uvchiga to'landi: ${userName(w.id)} ${money(v.amount)}`); await saveP(p, "To'lov yozildi"); await reload(); }}); },
   asmEdit: e => { const p = getP(e.dataset.id); openModal({title:"Yig'ish", body:`<div class="form">${fld("Loyiha menejeri", "manager", p.managerId || "", {sel:userOpts(["menejer","admin"])})}${fld("Boshlangan sana", "start", p.asm?.start || today(), {type:"date"})}${fld("Izoh", "note", p.asm?.note || "", {area:true, full:true, rows:2})}</div>`, submit: async v => { p.managerId = v.manager || null; p.asm = {...(p.asm || {}), start:v.start, note:v.note}; await saveP(p, "Saqlandi"); }}); },
   toInstall: e => { const p = getP(e.dataset.id); p.stage = "ornatish"; log(p, "Yig'ish tugadi, o'rnatishga o'tkazildi"); saveP(p, "O'rnatishga o'tkazildi").then(() => ACT.installEdit(e)).catch(x => toast(x.message)); },
-  installEdit: e => { const p = getP(e.dataset.id); const ins = p.install || {}; openModal({title:"O'rnatish", body:`<div class="form">${fld("O'rnatish sanasi", "date", ins.date || addDays(1), {type:"date"})}<div></div>${fld("Jamoa", "team", ins.team || [], {chips:ST.users.filter(u => u.active !== false && ["ornatuvchi","yiguvchi","menejer"].includes(u.role)).map(u => [u.id, u.name]), full:true})}${fld("Izoh", "note", ins.note || "", {area:true, full:true, rows:2})}</div>`,
+  installEdit: e => { const p = getP(e.dataset.id); const ins = p.install || {}; openModal({title:"O'rnatish", body:`<div class="form">${fld("O'rnatish sanasi", "date", ins.date || addDays(1), {type:"date"})}<div></div>${fld("Jamoa", "team", ins.team || [], {chips:ST.users.filter(u => u.active !== false && rolesOf(u).some(r => ["ornatuvchi","yiguvchi","menejer","haydovchi"].includes(r))).map(u => [u.id, u.name]), full:true})}${fld("Izoh", "note", ins.note || "", {area:true, full:true, rows:2})}</div>`,
     submit: async v => { p.install = {...ins, date:v.date, team:v.team, note:v.note}; log(p, `O'rnatish: ${fdate(v.date)}, ${v.team.map(userName).join(", ") || "jamoa tanlanmagan"}`); await saveP(p, "Saqlandi"); }}); },
   toHand: e => { const p = getP(e.dataset.id); p.stage = "topshirish"; log(p, "O'rnatildi, topshirish bosqichi"); saveP(p, "Topshirish bosqichi").catch(x => toast(x.message)); },
   handEdit: e => { const p = getP(e.dataset.id); const hd = p.hand || {}; openModal({title:"Topshirish natijasi", wide:true, body:`<div class="form">
@@ -683,9 +687,9 @@ const ACT = {
       <div class="full sub" style="margin:0">Narxlar (bo'sh qoldirish mumkin)</div>${fld("Kesish, so'm / list", "kesish", pr.kesish || "", {num:true})}${fld("Rover, so'm / detal", "rover", pr.rover || "", {num:true})}${fld("Kromka 0.4 mm, so'm / m", "k04", pr.k04 || "", {num:true})}${fld("Kromka 1 mm, so'm / m", "k1", pr.k1 || "", {num:true})}${fld("Kromka 2 mm, so'm / m", "k2", pr.k2 || "", {num:true})}${fld("Dvaynoy ustama, so'm / m", "dv", pr.dv || "", {num:true})}
       ${fld("Izoh", "note", s.note || "", {area:true, full:true, rows:2})}</div>`,
     submit: async v => { if (!v.name.trim()) throw new Error("Nomini kiriting"); await B.saveService({...s, name:v.name.trim(), own:v.own, phone:v.phone, address:v.address, saws:v.saws, note:v.note, active:true, prices:{kesish:num(v.kesish), rover:num(v.rover), k04:num(v.k04), k1:num(v.k1), k2:num(v.k2), dv:num(v.dv)}}); await reload(); toast("Saqlandi"); }}); },
-  userEdit: e => { const u = ST.users.find(x => x.id === e.dataset.id) || {role:"sotuvchi", active:true};
-    openModal({title:u.id ? "Xodimni tahrirlash" : "Yangi xodim", body:`<div class="form">${fld("Ism familiya", "name", u.name || "", {req:true, full:true})}${fld("Login", "login", u.login || "", {req:true, hint:u.id ? "loginni o'zgartirib bo'lmaydi" : "lotin harf va raqam, masalan: dilshod"})}${fld("Rol", "role", u.role, {sel:Object.entries(ROLES).map(([k, r]) => [k, r.n])})}${fld("Telefon", "phone", u.phone || "", {type:"tel"})}${fld(u.id ? "Yangi parol (o'zgartirish uchun)" : "Parol", "password", "", {type:"text", hint:"kamida 6 belgi", auto:"new-password"})}${u.id ? fld("Holat", "active", u.active !== false, {check:"Faol (ilovaga kira oladi)"}) : ""}</div>`,
-    submit: async v => { if (!v.name.trim()) throw new Error("Ismni kiriting"); await B.saveUser({id:u.id, name:v.name.trim(), login:u.id ? u.login : v.login, role:v.role, phone:v.phone, active:u.id ? v.active : true}, v.password); await reload(); toast(u.id ? "Saqlandi" : `Xodim qo'shildi. Login: ${v.login.trim().toLowerCase()}`); }}); setTimeout(() => { const l = $("#m-login"); if (l && u.id) l.disabled = true; }, 50); },
+  userEdit: e => { const u = ST.users.find(x => x.id === e.dataset.id) || {role:"sotuvchi", roles:["sotuvchi"], active:true};
+    openModal({title:u.id ? "Xodimni tahrirlash" : "Yangi xodim", body:`<div class="form">${fld("Ism familiya", "name", u.name || "", {req:true, full:true})}${fld("Login", "login", u.login || "", {req:true, hint:u.id ? "loginni o'zgartirib bo'lmaydi" : "lotin harf va raqam, masalan: dilshod"})}${fld("Vazifalari (bir nechtasini belgilash mumkin)", "roles", rolesOf(u), {chips:Object.entries(ROLES).map(([k, r]) => [k, r.n]), full:true, hint:"Belgilangan har bir vazifaning bo'limlari xodim ilovasida birga ochiladi"})}${fld("Telefon", "phone", u.phone || "", {type:"tel"})}${fld(u.id ? "Yangi parol (o'zgartirish uchun)" : "Parol", "password", "", {type:"text", hint:"kamida 6 belgi", auto:"new-password"})}${u.id ? fld("Holat", "active", u.active !== false, {check:"Faol (ilovaga kira oladi)"}) : ""}</div>`,
+    submit: async v => { if (!v.name.trim()) throw new Error("Ismni kiriting"); if (!v.roles.length) throw new Error("Kamida bitta vazifani belgilang"); const roles = Object.keys(ROLES).filter(k => v.roles.includes(k)); await B.saveUser({id:u.id, name:v.name.trim(), login:u.id ? u.login : v.login, role:roles[0], roles, phone:v.phone, active:u.id ? v.active : true}, v.password); await reload(); toast(u.id ? "Saqlandi" : `Xodim qo'shildi. Login: ${v.login.trim().toLowerCase()}`); }}); setTimeout(() => { const l = $("#m-login"); if (l && u.id) l.disabled = true; }, 50); },
   myPass: () => openModal({title:"Parolni o'zgartirish", body:`<div class="form">${fld("Joriy parol", "old", "", {type:"password", full:true, auto:"current-password"})}${fld("Yangi parol", "new1", "", {type:"password", auto:"new-password"})}${fld("Yangi parol (takror)", "new2", "", {type:"password", auto:"new-password"})}</div>`,
     submit: async v => { if (v.new1 !== v.new2) throw new Error("Yangi parollar bir xil emas"); await B.changeMyPassword(v.old, v.new1); toast("Parol o'zgartirildi"); }}),
   install: async () => { if (!installEvt) return; installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; schedule(); },
@@ -705,10 +709,10 @@ function openExpense(pid, cat){
     kesish:`${fld("Usluga", "service", defSvc || "", {sel:svc})}${fld("Arra", "saw", pr.saw || "", {sel:[["", "—"], ...SAWS.map(s => [s, s])]})}${fld("List soni", "sheets", "", {num:true, hint:"usluga narxi bo'lsa summa o'zi hisoblanadi"})}`,
     kromka:`${fld("Usluga", "service", defSvc || "", {sel:svc})}${fld("Kromka turi", "edgeType", pr.edgeType || "0.4 mm", {sel:EDGE_TYPES.map(x => [x, x])})}${fld("Metraj (m)", "meters", "", {num:true})}${fld("Dvaynoy", "double", !!pr.double, {check:"Dvaynoy"})}`,
     rover:`${fld("Usluga", "service", defSvc || "", {sel:svc})}${fld("Detal soni", "qty", "", {num:true})}`,
-    yol_sex:`${fld("Qayerdan → qayerga", "route", "Usluga → sex")}${fld("Mashina / haydovchi", "driver", "")}`,
-    yol_mijoz:`${fld("Qayerdan → qayerga", "route", "Sex → mijoz")}${fld("Mashina / haydovchi", "driver", "")}`,
+    yol_mijoz:`${fld("Qayerdan → qayerga", "route", "Sex → mijoz")}${fld("Shofyor", "worker", "", {sel:userOpts(["haydovchi"], "— tanlanmagan —")})}${fld("Mashina", "driver", "")}`,
     furnitura:`${fld("Turi", "ftype", "Petlya", {sel:FURN_TYPES.map(x => [x, x])})}${fld("Nomi / modeli", "name", "")}${fld("Soni", "qty", "", {num:true})}${fld("Dona narxi", "unit", "", {num:true, hint:"summa = soni × narx"})}`,
     yigish:`${fld("Kimga", "worker", "", {sel:userOpts(["yiguvchi","ornatuvchi"])})}`,
+    yol_sex:`${fld("Qayerdan → qayerga", "route", "Usluga → sex")}${fld("Shofyor", "worker", "", {sel:userOpts(["haydovchi"], "— tanlanmagan —")})}${fld("Mashina", "driver", "")}`,
     ornatish:`${fld("Kimga", "worker", "", {sel:userOpts(["ornatuvchi","yiguvchi"])})}`
   }[c] || "";
   openModal({title:(isGen ? "Chiqim" : `Xarajat · ${pno(p)}`), wide:true, body:`<div class="form">

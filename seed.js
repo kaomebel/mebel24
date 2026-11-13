@@ -9,7 +9,9 @@ async function seedDemo(B){
     ["Sherzod (yig'uvchi)","sherzod","666666","yiguvchi"],["Ulug'bek (o'rnatuvchi)","ulugbek","777777","ornatuvchi"],["Malika (kassir)","malika","888888","buxgalter"],["Otabek (ta'minot)","otabek","999999","taminot"]
   ];
   const U = {};
-  for (const [name, login, pass, role] of users){ const id = uidGen(); U[login] = id; d.users.push({id, name, login, role, phone:"", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + pass)}); }
+  const extra = {bekzod:["menejer","sotuvchi"], malika:["buxgalter","sotuvchi"], rustam:["yiguvchi","ornatuvchi"]};
+  users.push(["Anvar (shofyor)","anvar","101010","haydovchi"]);
+  for (const [name, login, pass, role] of users){ const id = uidGen(); U[login] = id; d.users.push({id, name, login, role, roles:extra[login] || [role], phone:"", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + pass)}); }
   const svc = [["KAO sexi", true, ["Altendorf"], {kesish:30000, k04:2500, k1:4000, dv:1500}], ["Ilhom", false, ["Pilni sentr"], {kesish:35000, k04:3000, k1:4500, k2:6500, dv:2000}], ["Zamin Baraka sexi", false, ["Altendorf","Pilni sentr"], {kesish:32000, k04:2800, k1:4200, rover:6000}], ["Latif Wood", false, ["Pilni sentr"], {kesish:38000, k1:4800, k2:7000, rover:5500}], ["Marg'ilon Makon (Murodil Qori)", false, ["Altendorf"], {kesish:28000, k04:2400, k1:3900}]];
   const S = {};
   svc.forEach(([name, own, saws, prices]) => { const id = uidGen(); S[name] = id; d.services.push({id, name, own, saws, prices, phone:"", address:"", note:"namuna", active:true}); });

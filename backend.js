@@ -33,7 +33,7 @@ class LocalBackend {
     login = String(login).trim().toLowerCase();
     if (!LOGIN_RE.test(login)) throw new Error("Login: 3–32 ta lotin harf yoki raqam");
     if (String(password).length < 6) throw new Error("Parol kamida 6 belgi bo'lsin");
-    const u = {id:uidGen(), name, login, role:"admin", phone:"", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + password)};
+    const u = {id:uidGen(), name, login, role:"admin", roles:["admin"], phone:"", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + password)};
     this.db.users.push(u); this._save(); this.me = u; safeLS.set(this.key + ":session", u.id);
     return this._pub(u);
   }
@@ -68,7 +68,7 @@ class LocalBackend {
   async saveService(s){ const i = this.db.services.findIndex(x => x.id === s.id); if (i >= 0) this.db.services[i] = s; else this.db.services.push({...s, id:uidGen()}); this._save(); }
   async deleteService(id){ this.db.services = this.db.services.filter(s => s.id !== id); this._save(); }
   async saveSettings(s){ this.db.settings = {...this.db.settings, ...s}; this._save(); }
-  _admin(){ if (this.me?.role !== "admin") throw new Error("Faqat administrator uchun"); }
+  _admin(){ const r = this.me?.roles?.length ? this.me.roles : [this.me?.role]; if (!r.includes("admin")) throw new Error("Faqat administrator uchun"); }
   async saveUser(u, password){
     this._admin();
     const login = String(u.login || "").trim().toLowerCase();
@@ -76,11 +76,11 @@ class LocalBackend {
       if (!LOGIN_RE.test(login)) throw new Error("Login: 3–32 ta lotin harf yoki raqam");
       if (this.db.users.some(x => x.login === login)) throw new Error("Bu login band");
       if (!password || String(password).length < 6) throw new Error("Parol kamida 6 belgi");
-      this.db.users.push({id:uidGen(), name:u.name, login, role:u.role, phone:u.phone || "", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + password)});
+      this.db.users.push({id:uidGen(), name:u.name, login, role:u.role, roles:u.roles || [u.role], phone:u.phone || "", active:true, created_at:new Date().toISOString(), pass: await sha256(login + ":" + password)});
     } else {
       const t = this.db.users.find(x => x.id === u.id); if (!t) throw new Error("Xodim topilmadi");
-      if (t.id === this.me.id && (u.active === false || u.role !== "admin")) throw new Error("O'zingizni administratorlikdan chiqara olmaysiz");
-      Object.assign(t, {name:u.name, role:u.role, phone:u.phone || "", active:u.active !== false});
+      if (t.id === this.me.id && (u.active === false || !(u.roles || [u.role]).includes("admin"))) throw new Error("O'zingizni administratorlikdan chiqara olmaysiz");
+      Object.assign(t, {name:u.name, role:u.role, roles:u.roles || [u.role], phone:u.phone || "", active:u.active !== false});
       if (password){ if (String(password).length < 6) throw new Error("Parol kamida 6 belgi"); t.pass = await sha256(t.login + ":" + password); }
     }
     this._save();
@@ -191,8 +191,8 @@ class SupabaseBackend {
   async deleteService(id){ const {error} = await this.sb.from("il_services").update({active:false}).eq("id", id); if (error) throw new Error(sbErr(error)); this._emit(); }
   async saveSettings(s){ const {data} = await this.sb.from("il_settings").select("data").eq("id", 1).maybeSingle(); const {error} = await this.sb.from("il_settings").update({data:{...(data?.data || {}), ...s}}).eq("id", 1); if (error) throw new Error(sbErr(error)); this._emit(); }
   async saveUser(u, password){
-    if (!u.id) await this._fn({action:"create", name:u.name, login:u.login, role:u.role, phone:u.phone, password});
-    else await this._fn({action:"update", id:u.id, name:u.name, role:u.role, phone:u.phone, active:u.active !== false, password:password || undefined});
+    if (!u.id) await this._fn({action:"create", name:u.name, login:u.login, role:u.role, roles:u.roles, phone:u.phone, password});
+    else await this._fn({action:"update", id:u.id, name:u.name, role:u.role, roles:u.roles, phone:u.phone, active:u.active !== false, password:password || undefined});
     this._emit();
   }
   async changeMyPassword(oldP, newP){
