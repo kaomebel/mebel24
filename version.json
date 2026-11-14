@@ -1,9 +1,8 @@
 {
- "version": "1.5",
- "date": "2026-11-13",
+ "version": "1.6",
+ "date": "2026-11-14",
  "notes": [
-  "«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari",
-  "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash",
-  "Vazifalar Trello ustunlarida, yangi pastki menyu (1.4 dagi o'zgarishlar)"
+  "Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi",
+  "«Jarayonlar» ichida «Ishlab chiqarish» doskasi (1.5)"
  ]
 }

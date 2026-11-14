@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.5";
+const APP_VERSION = "1.6";
 const CHANGELOG = [
+  ["1.6", "14.11.2026", ["Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi"]],
   ["1.5", "13.11.2026", ["«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari", "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash"]],
   ["1.4", "13.11.2026", ["Vazifalar Trello'dagidek ustunlarda: har bir bosqich alohida ustun", "Yangi «Jarayonlar» bo'limi: hamma loyihalar qaysi bosqichda ekani bitta doskada", "Pastki menyu: Bosh, Vazifalar, Jarayonlar, Ko'rsatkichlar, Menyu", "Yangi versiya chiqqanda ilovada xabar va «Yangilash» tugmasi"]],
   ["1.3", "13.11.2026", ["Bitta xodimga bir nechta vazifa (rol) berish", "Yangi vazifa: Shofyor (haydovchi)"]],
@@ -868,6 +869,41 @@ function updateBannerHTML(){
 }
 setInterval(() => { if (ST.me) checkVersion(); }, 5 * 60 * 1000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden && ST.me) checkVersion(); });
+
+/* ---------------- Pastga tortib yangilash ---------------- */
+(function pullToRefresh(){
+  const el = document.createElement("div"); el.className = "ptr"; el.setAttribute("aria-hidden", "true");
+  el.innerHTML = `<i class="ptr-ic">↓</i><span>Yangilash uchun torting</span>`;
+  document.body.appendChild(el);
+  const MAX = 96, NEED = 64;
+  let y0 = null, x0 = 0, d = 0, active = false, busy = false;
+  const set = v => { d = v; el.style.transform = `translate(-50%, ${v - 56}px)`; el.style.opacity = Math.min(1, v / NEED); const ready = v >= NEED; el.classList.toggle("ready", ready); el.querySelector("span").textContent = busy ? "Yangilanmoqda…" : ready ? "Qo'yib yuboring — yangilanadi" : "Yangilash uchun torting"; };
+  const reset = () => { el.style.transition = "transform .2s, opacity .2s"; set(0); setTimeout(() => el.style.transition = "", 220); };
+  document.addEventListener("touchstart", e => {
+    if (busy || UI.modal || UI.menu || window.scrollY > 0 || e.touches.length !== 1) { y0 = null; return; }
+    const sc = e.target.closest(".col-b, .m-b, .sheet, textarea"); if (sc && sc.scrollTop > 0) { y0 = null; return; }
+    y0 = e.touches[0].clientY; x0 = e.touches[0].clientX; active = false;
+  }, {passive:true});
+  document.addEventListener("touchmove", e => {
+    if (y0 === null) return;
+    const dy = e.touches[0].clientY - y0, dx = e.touches[0].clientX - x0;
+    if (!active && (Math.abs(dx) > Math.abs(dy) || dy < 0)) { y0 = null; return; }
+    if (dy > 8 && window.scrollY <= 0){ active = true; if (e.cancelable) e.preventDefault(); set(Math.min(MAX, dy * .5)); }
+  }, {passive:false});
+  document.addEventListener("touchend", async () => {
+    if (y0 === null || !active){ y0 = null; return; }
+    y0 = null; active = false;
+    if (d < NEED){ reset(); return; }
+    busy = true; el.classList.add("spin"); set(NEED);
+    try { await refreshAll(); } finally { busy = false; el.classList.remove("spin"); reset(); }
+  });
+})();
+async function refreshAll(){
+  await checkVersion();
+  if (UI.newVer){ toast("Yangi versiya o'rnatilmoqda…"); await ACT.doUpdate(); return; }
+  if (ST.me) await reload();
+  toast("Yangilandi");
+}
 
 /* ---------------- Ishga tushirish ---------------- */
 async function start(){
