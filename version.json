@@ -1,8 +1,9 @@
 {
- "version": "1.6",
- "date": "2026-11-14",
+ "version": "1.7",
+ "date": "2026-11-15",
  "notes": [
-  "Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi",
-  "«Jarayonlar» ichida «Ishlab chiqarish» doskasi (1.5)"
+  "Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi",
+  "Pul tushganda darhol xabarnoma",
+  "Moliya: «Bank tushumlari» bo'limi"
  ]
 }

@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.6";
+const APP_VERSION = "1.7";
 const CHANGELOG = [
+  ["1.7", "15.11.2026", ["Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi", "Pul tushganda darhol xabarnoma (xodimga, kassirga, administratorga)", "Moliya: «Bank tushumlari» — loyihaga bog'lanmagan tushumlarni bog'lash"]],
   ["1.6", "14.11.2026", ["Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi"]],
   ["1.5", "13.11.2026", ["«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari", "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash"]],
   ["1.4", "13.11.2026", ["Vazifalar Trello'dagidek ustunlarda: har bir bosqich alohida ustun", "Yangi «Jarayonlar» bo'limi: hamma loyihalar qaysi bosqichda ekani bitta doskada", "Pastki menyu: Bosh, Vazifalar, Jarayonlar, Ko'rsatkichlar, Menyu", "Yangi versiya chiqqanda ilovada xabar va «Yangilash» tugmasi"]],
@@ -105,10 +106,35 @@ const ST = {me:null, users:[], services:[], projects:[], payments:[], expenses:[
 const UI = {route:"bosh", ptab:"jarayon", ltab:"faol", lstage:"", q:"", lview:"list", period:"oy", modal:null, menu:false, loginMode:"xodim", busy:false};
 
 async function reload(){
-  try { const d = await B.loadAll(); Object.assign(ST, d, {loaded:true}); ST.me = B.current(); }
+  try { const d = await B.loadAll(); bankDiff(d); Object.assign(ST, d, {loaded:true}); ST.me = B.current(); }
   catch (e) { toast(e.message || String(e)); }
   schedule();
 }
+/* Bank xabarnomalari: tasdiq kutgan to'lov tasdiqlansa yoki kartaga yangi pul tushsa */
+const SEEN = {init:false, pend:new Set(), tx:new Set()};
+function bankDiff(d){
+  const pays = d.payments || [], txs = d.bankTx || [];
+  if (SEEN.init){
+    pays.filter(p => p.status === "tasdiqlangan" && p.bank_tx_id && SEEN.pend.has(p.id)).forEach(p => {
+      const pr = (d.projects || []).find(x => x.id === p.project_id);
+      notify(`✓ Tasdiqlandi: ${money(p.amount)} kartaga tushdi`, pr ? `${pno(pr)} · ${projectTitle(pr)} · ${userName(p.created_by)}` : "", pr ? "p-" + pr.id : "");
+    });
+    txs.filter(t => !SEEN.tx.has(t.id) && t.direction === "in" && !t.matched_payment_id && !pays.some(p => p.bank_tx_id === t.id) && Date.now() - new Date(t.created_at) < 30 * 60e3)
+      .forEach(t => notify(`Kartaga ${money(t.amount)} tushdi`, "Hali loyihaga bog'lanmagan. Moliya bo'limida bog'lang", "moliya", "warn"));
+  }
+  SEEN.pend = new Set(pays.filter(p => p.status === "kutilmoqda").map(p => p.id));
+  txs.forEach(t => SEEN.tx.add(t.id)); SEEN.init = true;
+}
+function notify(title, text, href, tone = "ok"){
+  const host = $("#notifs") || (() => { const h = document.createElement("div"); h.id = "notifs"; document.body.appendChild(h); return h; })();
+  const el = document.createElement("a"); el.className = "notif " + tone; if (href) el.href = "#" + href;
+  el.innerHTML = `<b>${esc(title)}</b>${text ? `<span>${esc(text)}</span>` : ""}`;
+  el.addEventListener("click", () => el.remove());
+  host.prepend(el); setTimeout(() => el.remove(), 12000);
+  try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (e) {}
+  try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification(title, {body:text, icon:"icons/icon-192.png"}); } catch (e) {}
+}
+const payBadge = x => x.status === "kutilmoqda" ? pill("⏳ Bank tasdig'i kutilmoqda", "warn") : x.bank_tx_id ? pill("✓ Kartaga tushdi", "ok") : "";
 let raf = 0; function schedule(){ if (!raf) raf = requestAnimationFrame(() => { raf = 0; render(); }); }
 
 /* ---------------- Hisob-kitob ---------------- */
@@ -247,6 +273,7 @@ function vBosh(){
   if (canFin()){
     k.push(["Bu oy tushum", mshort(sum(ST.payments.filter(p => inPeriod(p.date, "oy")), p => p.amount)), "", "#moliya"]);
     k.push(["Qarzdorlik", mshort(sum(ST.projects, projectDebt)), "", "#moliya"]);
+    const pend = ST.payments.filter(x => x.status === "kutilmoqda").length; if ((ST.bankSources || []).some(x => x.active)) k.push(["Bank tasdig'i kutilmoqda", pend, pend ? "warn" : "", "#moliya"]);
   } else { k.push(["Bu oy leadlar", monthLeads.length, "", "#loyihalar"]); k.push(["Bu oy sotildi", monthSold.length, "", "#loyihalar"]); }
   h += `<div class="kpis">${k.map(([l, v, t, href]) => `<a class="kpi ${t}" href="${href}"><span>${esc(l)}</span><b>${v}</b></a>`).join("")}</div>`;
   // Bosqichlar bo'yicha
@@ -489,7 +516,7 @@ function projMoney(p){
   const pays = ST.payments.filter(x => x.project_id === p.id).sort((a, b) => a.date.localeCompare(b.date));
   const ex = ST.expenses.filter(x => x.project_id === p.id).sort((a, b) => a.date.localeCompare(b.date));
   const canDelPay = isRole("admin","buxgalter");
-  let h = `<div class="card"><div class="card-h"><h2>Mijoz to'lovlari</h2><button class="btn sm pri" data-act="payAdd" data-id="${p.id}">+ To'lov</button></div>${pays.length ? `<div class="tblw"><table class="tbl"><tbody>${pays.map(x => `<tr><td class="nowrap">${fdate(x.date)}</td><td><div class="t1">${esc(PAY_KINDS[x.kind] || x.kind)}</div><div class="t2">${esc(PAY_METHODS[x.method] || x.method)}${x.note ? " · " + esc(x.note) : ""}</div></td><td class="r nowrap">${money(x.amount)}</td><td class="r">${canDelPay ? `<button class="iconbtn sm" data-act="payDel" data-id="${x.id}" aria-label="O'chirish">${ic("trash", 16)}</button>` : ""}</td></tr>`).join("")}<tr class="tot"><td colspan="2">Jami to'langan</td><td class="r">${money(sum(pays, x => x.amount))}</td><td></td></tr></tbody></table></div>` : `<div class="empty">To'lov yo'q</div>`}</div>`;
+  let h = `<div class="card"><div class="card-h"><h2>Mijoz to'lovlari</h2><button class="btn sm pri" data-act="payAdd" data-id="${p.id}">+ To'lov</button></div>${pays.length ? `<div class="tblw"><table class="tbl"><tbody>${pays.map(x => `<tr><td class="nowrap">${fdate(x.date)}</td><td><div class="t1">${esc(PAY_KINDS[x.kind] || x.kind)}</div><div class="t2">${esc(PAY_METHODS[x.method] || x.method)}${x.note ? " · " + esc(x.note) : ""}</div>${payBadge(x)}</td><td class="r nowrap">${money(x.amount)}</td><td class="r">${canDelPay ? `<button class="iconbtn sm" data-act="payDel" data-id="${x.id}" aria-label="O'chirish">${ic("trash", 16)}</button>` : ""}</td></tr>`).join("")}<tr class="tot"><td colspan="2">Jami to'langan</td><td class="r">${money(sum(pays, x => x.amount))}</td><td></td></tr></tbody></table></div>` : `<div class="empty">To'lov yo'q</div>`}</div>`;
   h += `<div class="card"><div class="card-h"><h2>Xarajatlar</h2><button class="btn sm" data-act="expAdd" data-id="${p.id}" data-c="">+ Xarajat</button></div>${ex.length ? `<div class="tblw"><table class="tbl"><tbody>${ex.map(expRow).join("")}<tr class="tot"><td colspan="2">Jami xarajat${canFin() ? "" : " (siz kiritganlar)"}</td><td class="r">${money(sum(ex, e => e.amount))}</td><td></td></tr></tbody></table></div>` : `<div class="empty">Xarajat yozilmagan</div>`}</div>`;
   if (canFin()) h += smetaCard(p, true);
   return h;
@@ -555,7 +582,8 @@ function vMoliya(){
   h += `<div class="card"><div class="card-h"><h2>Loyihalar natijasi</h2><span class="t2">shu davrda sotilgan yoki yopilgan</span></div>${rows.length ? `<div class="tblw"><table class="tbl"><thead><tr><th>Loyiha</th><th>Holat</th><th class="r">Daromad</th><th class="r">Tannarx</th><th class="r">Foyda</th><th class="r">%</th></tr></thead><tbody>${rows.map(r => `<tr class="click" data-act="go" data-v="p-${r.p.id}"><td><div class="t1">${esc(projectTitle(r.p))}</div><div class="t2">${pno(r.p)}</div></td><td>${r.p.status === "yopilgan" ? pill("Yopilgan", "done") : pill(SK[r.p.stage]?.n, "st-" + r.p.stage)}</td><td class="r">${mshort(r.rev)}</td><td class="r">${mshort(r.c)}</td><td class="r ${r.pr >= 0 ? "ok-t" : "bad-t"}">${mshort(r.pr)}</td><td class="r">${r.rev ? Math.round(r.pr / r.rev * 100) : 0}%</td></tr>`).join("")}<tr class="tot"><td colspan="2">Jami</td><td class="r">${mshort(sum(rows, r => r.rev))}</td><td class="r">${mshort(sum(rows, r => r.c))}</td><td class="r">${mshort(sum(rows, r => r.pr))}</td><td></td></tr></tbody></table></div>` : `<div class="empty">Shu davrda sotilgan loyiha yo'q</div>`}</div>`;
   // Jurnal
   const jr = [...pays.map(p => ({d:p.date, t:"in", x:p})), ...exps.map(e => ({d:e.date, t:"out", x:e}))].sort((a, b) => b.d.localeCompare(a.d)).slice(0, 60);
-  h += `<div class="card"><div class="card-h"><h2>Kassa jurnali</h2><span class="t2">oxirgi ${jr.length} ta</span></div>${jr.length ? `<div class="tblw"><table class="tbl"><tbody>${jr.map(r => { const pr = ST.projects.find(p => p.id === r.x.project_id); return `<tr><td class="nowrap">${fdate(r.d)}</td><td><div class="t1">${r.t === "in" ? esc(PAY_KINDS[r.x.kind] || "Kirim") : esc(EXP[r.x.category]?.n || EXP_GENERAL[r.x.category] || r.x.category)}</div><div class="t2">${pr ? pno(pr) + " · " + esc(projectTitle(pr)) : "Umumiy"}${r.t === "out" && expDetail(r.x) ? " · " + esc(expDetail(r.x)) : ""} · ${esc(userName(r.x.created_by))}</div></td><td class="r nowrap ${r.t === "in" ? "ok-t" : "bad-t"}">${r.t === "in" ? "+" : "−"}${money(r.x.amount)}</td><td class="r">${isRole("admin","buxgalter") ? `<button class="iconbtn sm" data-act="${r.t === "in" ? "payDel" : "expDel"}" data-id="${r.x.id}" aria-label="O'chirish">${ic("trash", 16)}</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Shu davrda yozuv yo'q</div>`}</div>`;
+  h += bankCardHTML();
+  h += `<div class="card"><div class="card-h"><h2>Kassa jurnali</h2><span class="t2">oxirgi ${jr.length} ta</span></div>${jr.length ? `<div class="tblw"><table class="tbl"><tbody>${jr.map(r => { const pr = ST.projects.find(p => p.id === r.x.project_id); return `<tr><td class="nowrap">${fdate(r.d)}</td><td><div class="t1">${r.t === "in" ? esc(PAY_KINDS[r.x.kind] || "Kirim") + " " + payBadge(r.x) : esc(EXP[r.x.category]?.n || EXP_GENERAL[r.x.category] || r.x.category)}</div><div class="t2">${pr ? pno(pr) + " · " + esc(projectTitle(pr)) : "Umumiy"}${r.t === "out" && expDetail(r.x) ? " · " + esc(expDetail(r.x)) : ""} · ${esc(userName(r.x.created_by))}</div></td><td class="r nowrap ${r.t === "in" ? "ok-t" : "bad-t"}">${r.t === "in" ? "+" : "−"}${money(r.x.amount)}</td><td class="r">${isRole("admin","buxgalter") ? `<button class="iconbtn sm" data-act="${r.t === "in" ? "payDel" : "expDel"}" data-id="${r.x.id}" aria-label="O'chirish">${ic("trash", 16)}</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Shu davrda yozuv yo'q</div>`}</div>`;
   return h;
 }
 
@@ -582,7 +610,7 @@ function vSozlamalar(){
   let h = `<div class="head"><div><h1>Sozlamalar</h1></div></div>`;
   h += `<div class="grid2"><div class="card"><div class="card-h"><h2>Mening profilim</h2></div>${kv([["Ism", esc(ST.me.name)], ["Login", `<span class="mono">${esc(ST.me.login)}</span>`], ["Rol", esc(roleNames(ST.me))]])}<div class="actions"><button class="btn" data-act="myPass">Parolni o'zgartirish</button><button class="btn danger" data-act="logout">Chiqish</button></div></div>`;
   if (isRole("admin")) h += `<div class="card"><div class="card-h"><h2>Korxona</h2></div><form id="setForm" class="stack"><div class="fld"><label for="s-co">Korxona nomi</label><input class="inp" id="s-co" name="company" value="${esc(ST.settings.company || "")}"></div><div class="fld"><label for="s-days">Odatiy tayyorlash muddati (kun)</label><input class="inp" id="s-days" name="defaultDays" inputmode="numeric" value="${esc(ST.settings.defaultDays || 25)}"></div><button class="btn pri" type="submit">Saqlash</button></form></div>`;
-  h += `</div>` + installHTML(true) + `<div class="card"><div class="card-h"><h2>Yangiliklar</h2><span class="t2">versiya ${APP_VERSION}</span></div>${CHANGELOG.map(([v, d, items]) => `<div class="news"><b>${esc(v)}</b> <span class="t2">${esc(d)}</span><ul>${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div><div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Versiya", APP_VERSION], ["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Yangilanish", `<button class="btn sm" data-act="checkUpd">Yangi versiyani tekshirish</button>`]])}${B.mode === "local" && isRole("admin") ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
+  h += `</div>` + installHTML(true) + (isRole("admin") ? bankSettingsHTML() : "") + notifSettingsHTML() + `<div class="card"><div class="card-h"><h2>Yangiliklar</h2><span class="t2">versiya ${APP_VERSION}</span></div>${CHANGELOG.map(([v, d, items]) => `<div class="news"><b>${esc(v)}</b> <span class="t2">${esc(d)}</span><ul>${items.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div><div class="card"><div class="card-h"><h2>Ilova haqida</h2></div>${kv([["Versiya", APP_VERSION], ["Rejim", B.mode === "local" ? "Sinov: ma'lumotlar shu brauzerda" : "Ish: umumiy server (Supabase)"], ["Yangilanish", `<button class="btn sm" data-act="checkUpd">Yangi versiyani tekshirish</button>`]])}${B.mode === "local" && isRole("admin") ? `<div class="actions"><button class="btn danger" data-act="resetDemo">Sinov ma'lumotlarini tozalash</button></div>` : ""}</div>`;
   return h;
 }
 const VIEWS = {bosh:vBosh, vazifalar:vVazifalar, jarayonlar:vJarayonlar, loyihalar:vLoyihalar, sotuv:vSotuv, moliya:vMoliya, uslugalar:vUslugalar, xodimlar:vXodimlar, sozlamalar:vSozlamalar};
@@ -750,7 +778,7 @@ const ACT = {
 
   payAdd: e => { const pid = e.dataset.id; const p = pid ? ST.projects.find(x => x.id === pid) : null; const debt = p ? projectPrice(p) + projectExtra(p) - projectPaid(p) : 0;
     const projOpts = [["", "— loyihani tanlang —"], ...ST.projects.filter(x => x.sale && x.status !== "rad").map(x => [x.id, `${pno(x)} ${projectTitle(x)}${projectDebt(x) ? " · qoldiq " + mshort(projectDebt(x)) : ""}`])];
-    openModal({title:"Mijozdan to'lov", body:`<div class="form">${!p ? fld("Loyiha", "pid", "", {sel:projOpts, full:true}) : ""}${fld("Summa", "amount", debt > 0 && e.dataset.k === "qoldiq" ? Math.round(debt) : "", {num:true, req:true, hint:p ? `Qoldiq: ${money(Math.max(0, debt))}` : ""})}${fld("Turi", "kind", e.dataset.k || (p?.sale ? "oraliq" : "zaklat"), {sel:Object.entries(PAY_KINDS)})}${fld("Usul", "method", "naqd", {sel:Object.entries(PAY_METHODS)})}${fld("Sana", "date", today(), {type:"date"})}${fld("Izoh", "note", "", {full:true})}</div>`,
+    openModal({title:"Mijozdan to'lov", body:`<div class="form">${!p ? fld("Loyiha", "pid", "", {sel:projOpts, full:true}) : ""}${fld("Summa", "amount", debt > 0 && e.dataset.k === "qoldiq" ? Math.round(debt) : "", {num:true, req:true, hint:p ? `Qoldiq: ${money(Math.max(0, debt))}` : ""})}${fld("Turi", "kind", e.dataset.k || (p?.sale ? "oraliq" : "zaklat"), {sel:Object.entries(PAY_KINDS)})}${fld("Usul", "method", "naqd", {sel:Object.entries(PAY_METHODS), hint:(ST.bankSources || []).some(x => x.active) ? "Karta yoki o'tkazma: pul kartaga tushgach avtomatik tasdiqlanadi" : ""})}${fld("Sana", "date", today(), {type:"date"})}${fld("Izoh", "note", "", {full:true})}</div>`,
     submit: async v => { const proj = p || ST.projects.find(x => x.id === v.pid); if (!proj) throw new Error("Loyihani tanlang"); if (!(num(v.amount) > 0)) throw new Error("Summani kiriting"); await addPay(proj, v.amount, v.kind, v.method, v.note, v.date); const pp = getP(proj.id); log(pp, `To'lov: ${money(v.amount)} (${PAY_KINDS[v.kind]})`); await saveP(pp, "To'lov qabul qilindi"); }}); },
   payDel: e => confirmBox("To'lovni o'chirish", "Bu to'lov yozuvi o'chiriladi.", "O'chirish", async () => { await B.deletePayment(e.dataset.id); await reload(); toast("O'chirildi"); }),
   expAdd: e => openExpense(e.dataset.id, e.dataset.c),
@@ -852,6 +880,52 @@ document.addEventListener("submit", async ev => {
 document.addEventListener("keydown", ev => { if (ev.key === "Escape" && UI.modal) closeModal(); });
 function route(){ UI.route = location.hash.slice(1) || "bosh"; UI.menu = false; if (!UI.route.startsWith("p-")) UI.ptab = "jarayon"; render(); window.scrollTo(0, 0); }
 window.addEventListener("hashchange", route);
+
+/* ---------------- Bank kartasi ---------------- */
+function bankCardHTML(){
+  const txs = (ST.bankTx || []).filter(t => t.direction === "in").slice(0, 30);
+  if (!(ST.bankSources || []).length && !txs.length) return "";
+  const un = txs.filter(t => !t.matched_payment_id);
+  return `<div class="card"><div class="card-h"><div><h2>Bank tushumlari</h2><div class="t2">Kartaga kelgan pullar: karta to'lovlari bilan avtomatik solishtiriladi</div></div>${un.length ? pill(un.length + " ta bog'lanmagan", "warn") : ""}</div>
+    ${txs.length ? `<div class="tblw"><table class="tbl"><tbody>${txs.map(t => { const pay = ST.payments.find(p => p.id === t.matched_payment_id || p.bank_tx_id === t.id); const pr = pay && ST.projects.find(x => x.id === pay.project_id);
+      return `<tr><td class="nowrap">${fdate(t.created_at)} <span class="t2">${new Date(t.created_at).toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit"})}</span></td><td>${t.card_last4 ? `<span class="mono">*${esc(t.card_last4)}</span>` : ""}<div class="t2">${pr ? `<a href="#p-${pr.id}">${pno(pr)} · ${esc(projectTitle(pr))}</a>` : "Bog'lanmagan"}</div></td><td class="r nowrap ok-t">+${money(t.amount)}</td><td class="r">${pay ? pill("✓ bog'langan", "ok") : `<button class="btn sm pri" data-act="bankLink" data-id="${t.id}">Loyihaga bog'lash</button>`}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="empty">Hali tushum kelmagan. Karta ulangan bo'lsa, birinchi SMS kelgach shu yerda ko'rinadi.</div>`}</div>`;
+}
+function bankSettingsHTML(){
+  const src = (ST.bankSources || []).filter(x => x.active);
+  return `<div class="card"><div class="card-h"><div><h2>Bank kartasi</h2><div class="t2">Kartaga tushgan pul haqidagi bank SMS'i orqali to'lovlar avtomatik tasdiqlanadi</div></div><button class="btn sm pri" data-act="bankAdd">+ Kartani ulash</button></div>
+    ${src.length ? `<div class="list">${src.map(x => `<div class="row"><div class="grow"><div class="t1">${esc(x.name)} ${x.card_last4 ? `<span class="mono">*${esc(x.card_last4)}</span>` : ""}</div><div class="t2">${x.last_seen ? "Oxirgi SMS: " + fdate(x.last_seen) + " " + new Date(x.last_seen).toLocaleTimeString("ru-RU", {hour:"2-digit", minute:"2-digit"}) : "Hali SMS kelmagan"}</div></div><button class="btn sm danger" data-act="bankDel" data-id="${x.id}">Uzish</button></div>`).join("")}</div>` : `<p class="muted small">Karta ulanmagan. Ulash uchun «+ Kartani ulash» ni bosing.</p>`}</div>`;
+}
+function notifSettingsHTML(){
+  if (!("Notification" in window) || inFrame()) return "";
+  const st = Notification.permission;
+  return `<div class="card"><div class="card-h"><h2>Bildirishnomalar</h2>${st === "granted" ? pill("Yoqilgan", "ok") : ""}</div><p class="muted small" style="margin-top:0">Ilova fonda ochiq bo'lsa ham kartaga pul tushgani haqida telefon xabari chiqadi.</p>${st !== "granted" ? `<button class="btn" data-act="notifOn" ${st === "denied" ? "disabled" : ""}>${st === "denied" ? "Brauzer sozlamalarida taqiqlangan" : "Bildirishnomalarni yoqish"}</button>` : ""}</div>`;
+}
+function bankSetupModal(key){
+  const url = B.bankUrl ? B.bankUrl(key) : "(sinov rejimi: server manzili yo'q)";
+  openModal({title:"Karta ulandi: telefonni sozlang", wide:true, ok:"Sinov SMS'ini yuborish", body:`
+    <p>Bank SMS'lari keladigan <b>Android telefonda</b> quyidagilarni bir marta qiling:</p>
+    <ol class="steps2"><li>Play Market'dan <b>«SMS Forwarder»</b> ilovasini o'rnating (Webhook / URL'ga yuborish imkoniyati bor ilova).</li>
+    <li>Yangi qoida qo'shing: yuboruvchi — bankingiz SMS raqami (masalan HUMO, UZCARD yoki bank nomi).</li>
+    <li>Yo'nalish: <b>Webhook (POST, JSON)</b>. Manzil:</li></ol>
+    <div class="keybox"><code id="bank-url">${esc(url)}</code><button type="button" class="btn sm" data-act="copy" data-v="${esc(url)}">Nusxa</button></div>
+    <ol class="steps2" start="4"><li>Xabar shabloni: <code>{"text":"%text%","from":"%from%"}</code> (ilovada SMS matni va yuboruvchi o'zgaruvchilari shunday nomlanadi).</li><li>Saqlang. Bu manzil faqat bir marta ko'rsatiladi: uni xavfsiz joyga yozib qo'ying. Hech kimga bermang.</li></ol>
+    <div class="fld"><label for="m-sms">Sinov: bank SMS namunasini kiriting</label><textarea class="inp" id="m-sms" name="sms" rows="3">Popolnenie 2 200 000.00 UZS, karta ***${esc(UI.lastLast4 || "1234")}</textarea><small>«Sinov SMS'ini yuborish» — tizim SMS'ni o'qiydi. Shu summada tasdiq kutayotgan karta to'lovi bo'lsa, u tasdiqlanadi.</small></div>`,
+    submit: async v => { const r = await B.bankTest(key, v.sms); await reload(); if (r.note) throw new Error("SMS o'qilmadi: " + r.note); toast(`O'qildi: ${money(r.amount)}, ${r.direction === "in" ? "kirim" : r.direction === "out" ? "chiqim" : "noma'lum"}${r.matched ? " — to'lov tasdiqlandi" : ""}`); return "keep"; }});
+}
+Object.assign(ACT, {
+  bankAdd: () => openModal({title:"Bank kartasini ulash", body:`<div class="form">${fld("Nomi", "name", "Asosiy karta", {req:true})}${fld("Karta oxirgi 4 raqami", "last4", "", {ph:"1234", hint:"Faqat oxirgi 4 raqam. To'liq karta raqamini kiritmang"})}</div>
+      <p class="small muted">Karta raqami, muddati, CVV yoki SMS kod hech qachon so'ralmaydi va kiritilmasin.</p>`,
+    submit: async v => { const last4 = String(v.last4 || "").replace(/\D/g, ""); if (last4 && last4.length !== 4) throw new Error("Faqat oxirgi 4 ta raqamni kiriting"); UI.lastLast4 = last4; const key = await B.saveBankSource({name:v.name.trim() || "Karta", last4}); await reload(); setTimeout(() => bankSetupModal(key), 50); }}),
+  bankDel: e => confirmBox("Kartani uzish", "Bu karta uchun SMS qabul qilish to'xtatiladi. Oldingi tushumlar saqlanadi.", "Uzish", async () => { await B.deleteBankSource(e.dataset.id); await reload(); toast("Karta uzildi"); }),
+  bankLink: e => { const t = (ST.bankTx || []).find(x => x.id === e.dataset.id); if (!t) return;
+    const pend = ST.payments.filter(p => p.status === "kutilmoqda");
+    const same = pend.filter(p => Math.abs(num(p.amount) - num(t.amount)) < 1);
+    const projOpts = [["", "— loyihani tanlang —"], ...ST.projects.filter(x => x.sale && x.status !== "rad").map(x => [x.id, `${pno(x)} ${projectTitle(x)}${projectDebt(x) ? " · qoldiq " + mshort(projectDebt(x)) : ""}`])];
+    openModal({title:`Tushumni bog'lash: ${money(t.amount)}`, body:`<div class="form">${pend.length ? fld("Tasdiq kutayotgan to'lov", "pay", same[0]?.id || "", {sel:[["", "— yangi to'lov sifatida —"], ...pend.map(p => { const pr = ST.projects.find(x => x.id === p.project_id); return [p.id, `${money(p.amount)} · ${pr ? pno(pr) + " " + projectTitle(pr) : ""} · ${userName(p.created_by)}`]; })], full:true, hint:"Xodim kiritgan va bank tasdig'ini kutayotgan to'lov bo'lsa, uni tanlang"}) : ""}
+      ${fld("Yoki loyiha (yangi to'lov)", "pid", "", {sel:projOpts, full:true})}${fld("To'lov turi", "kind", "oraliq", {sel:Object.entries(PAY_KINDS)})}</div>`,
+      submit: async v => { if (!v.pay && !v.pid) throw new Error("To'lovni yoki loyihani tanlang"); await B.linkBankTx(t.id, v.pid || null, v.kind, v.pay || null); await reload(); toast("Tushum bog'landi va tasdiqlandi"); }}); },
+  notifOn: async () => { try { const r = await Notification.requestPermission(); toast(r === "granted" ? "Bildirishnomalar yoqildi" : "Ruxsat berilmadi"); } catch (e) {} render(); }
+});
 
 /* ---------------- Yangilanish ---------------- */
 async function checkVersion(manual){
