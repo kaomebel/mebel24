@@ -324,3 +324,15 @@ textarea.inp{resize:vertical}
 .buy-in{display:grid;grid-template-columns:90px 130px;gap:8px}
 .buy-tot{margin-top:10px;font-size:15px}
 @media (max-width:860px){.oi-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.buy-in{grid-template-columns:1fr 1fr;width:100%}}
+.smeta .big b{font-family:var(--f-display);font-size:24px}
+.smeta .bad b{color:var(--bad)}
+.bar-row b small{font-weight:500}
+.staff{display:flex;flex-direction:column}
+.st-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,2fr) auto;gap:8px 14px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line2)}
+.st-row.tot{border-bottom:0;font-weight:600}
+.st-nums{display:flex;gap:4px 16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.st-nums b{color:var(--fg);font-variant-numeric:tabular-nums;white-space:nowrap}
+.st-nums .bad-t b{color:var(--bad)} .st-nums .ok-t b{color:var(--ok)}
+.bar-row b small{display:block;font-weight:500;font-size:11.5px}
+@media (max-width:860px){.st-row{grid-template-columns:minmax(0,1fr) auto}.st-nums{grid-column:1/-1;grid-row:2;flex-direction:column}.st-act{grid-column:2;grid-row:1}}
+.smeta b span{display:inline;font-size:inherit}

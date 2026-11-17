@@ -1,11 +1,10 @@
 {
- "version": "1.9",
+ "version": "2.0",
  "date": "2026-11-17",
  "notes": [
-  "Buyurtmani to'ldirish: mijoz, o'rnatish manzili, bir nechta mebel (turi, materiali, rangi, matras), yetkazish va o'rnatish",
-  "Narxlar xotirasi: laminat, raspil, kromka, rover, furnitura narxlari o'zi qo'yiladi va yangilanadi",
-  "Furnitura ro'yxati, «keldi» deb tasdiqlash va chek rasmi",
-  "Yangi «Ta'minot» bo'limi",
-  "Chala ishlarga rasm biriktirish"
+  "Loyiha hisobi: daromad, pul aylanishi, jarayonlar bo'yicha xarajat, yalpi foyda",
+  "Har bir xodimga ajratilgan, to'langan va qolgan haq",
+  "Sozlamalar: sotuvchi/menejer foizi, o'lchovchi va texnolog haqi",
+  "Loyiha yopilganda hisob qayd etiladi"
  ]
 }

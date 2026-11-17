@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.9";
+const APP_VERSION = "2.0";
 const CHANGELOG = [
+  ["2.0", "17.11.2026", ["Loyiha hisobi: jami daromad, pul aylanishi, har bir jarayon bo'yicha xarajat, yalpi foyda va rentabellik", "Har bir xodimga ajratilgan, to'langan va qolgan haq; bir bosishda to'lash", "Sozlamalarda xodimlar ulushi: sotuvchi va menejer foizi, o'lchovchi va texnolog haqi", "Loyiha yopilganda hisob qayd etiladi", "Moliya: loyihalar ko'rsatkichlari va xodimlar hisobi"]],
   ["1.9", "17.11.2026", ["Buyurtmani to'ldirish: mijoz, o'rnatish manzili, bir nechta mebel (turi, materiali, rangi, matras), yetkazish va o'rnatish", "Narxlar xotirasi: laminat, raspil, kromka, rover, furnitura narxlari o'zi qo'yiladi va yangilanadi", "Furnitura ro'yxati furniturachi uchun, «keldi» deb tasdiqlash, chek rasmi", "Yangi «Ta'minot» bo'limi", "Chala ishlarga rasm biriktirish"]],
   ["1.8", "17.11.2026", ["Telefonda «+ Xodim», «+ Usluga», «+ Kirim», «+ Chiqim» tugmalari ko'rinmay qolgan xato tuzatildi", "Bosh sahifada administrator uchun «Xodim qo'shish» tugmasi"]],
   ["1.7", "15.11.2026", ["Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi", "Pul tushganda darhol xabarnoma (xodimga, kassirga, administratorga)", "Moliya: «Bank tushumlari» — loyihaga bog'lanmagan tushumlarni bog'lash"]],
@@ -397,7 +398,7 @@ function vProject(id){
   h += `<div class="stepper">${STAGES.map((s, i) => { const done = p.status === "yopilgan" || i < cur; const on = i === cur && p.status !== "yopilgan"; return `<div class="step ${done ? "done" : ""} ${on ? "on" : ""}"><i>${done ? ic("check", 14) : i + 1}</i><span>${esc(s.n)}</span></div>`; }).join("")}<div class="step ${p.status === "yopilgan" ? "on done" : ""}"><i>${p.status === "yopilgan" ? ic("check", 14) : "✓"}</i><span>Yopildi</span></div></div>`;
   // Pul
   const money5 = [["Narx", price ? (p.sale ? money(price + extra) : "≈ " + money(price)) : "—"], ["To'langan", money(paid)], ["Qoldiq", money(p.sale ? price + extra - paid : 0)]];
-  if (canFin()) money5.push(["Xarajat", money(cost)], ["Foyda", p.sale ? money(price + extra - cost) : "—"]);
+  if (canFin()){ const RR = typeof projectReport === "function" ? (p.status === "yopilgan" && p.final ? p.final : projectReport(p)) : {cost, gross:price + extra - cost}; money5.push(["Xarajat (xodimlar bilan)", money(RR.cost)], ["Yalpi foyda", p.sale ? money(RR.gross) : "—"]); }
   h += `<div class="mstrip">${money5.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>`;
   h += `<div class="tabs">${[["jarayon","Jarayon"],["moliya","Pul va xarajat"],["tarix","Tarix"]].map(([k, n]) => `<button class="tab2 ${UI.ptab === k ? "on" : ""}" data-act="ptab" data-v="${k}">${n}</button>`).join("")}</div>`;
   if (UI.ptab === "moliya") return h + projMoney(p);
@@ -583,10 +584,6 @@ function vMoliya(){
   const cmx = Math.max(1, ...cats.map(c => c[1]));
   h += `<div class="grid2"><div class="card"><div class="card-h"><h2>Chiqim tarkibi</h2></div>${cats.length ? `<div class="bars">${cats.map(([c, v]) => `<div class="bar-row"><span>${esc(EXP[c]?.n || EXP_GENERAL[c] || c)}</span><div class="bar bad"><i style="width:${v / cmx * 100}%"></i></div><b>${mshort(v)}</b></div>`).join("")}</div>` : `<div class="empty">Shu davrda chiqim yo'q</div>`}</div>
     <div class="card"><div class="card-h"><h2>Qarzdor mijozlar</h2></div>${debts.length ? `<div class="list">${debts.slice(0, 8).map(p => `<a class="row" href="#p-${p.id}"><div class="grow"><div class="t1">${esc(projectTitle(p))}</div><div class="t2">${pno(p)} · ${esc(SK[p.stage]?.n || "")}${p.status === "yopilgan" ? " · yopilgan" : ""}</div></div><b class="bad-t nowrap">${money(projectDebt(p))}</b></a>`).join("")}</div>` : `<div class="empty">Qarzdor yo'q</div>`}</div></div>`;
-  // Loyihalar natijasi
-  const closed = ST.projects.filter(p => p.sale && (p.status === "yopilgan" ? inPeriod(p.closedAt) : UI.period === "hammasi"));
-  const rows = ST.projects.filter(p => p.sale && p.status !== "rad" && (inPeriod(p.closedAt) || inPeriod(p.sale.date))).map(p => { const rev = projectPrice(p) + projectExtra(p), c = projectCost(p); return {p, rev, c, pr:rev - c}; }).sort((a, b) => b.pr - a.pr);
-  h += `<div class="card"><div class="card-h"><h2>Loyihalar natijasi</h2><span class="t2">shu davrda sotilgan yoki yopilgan</span></div>${rows.length ? `<div class="tblw"><table class="tbl"><thead><tr><th>Loyiha</th><th>Holat</th><th class="r">Daromad</th><th class="r">Tannarx</th><th class="r">Foyda</th><th class="r">%</th></tr></thead><tbody>${rows.map(r => `<tr class="click" data-act="go" data-v="p-${r.p.id}"><td><div class="t1">${esc(projectTitle(r.p))}</div><div class="t2">${pno(r.p)}</div></td><td>${r.p.status === "yopilgan" ? pill("Yopilgan", "done") : pill(SK[r.p.stage]?.n, "st-" + r.p.stage)}</td><td class="r">${mshort(r.rev)}</td><td class="r">${mshort(r.c)}</td><td class="r ${r.pr >= 0 ? "ok-t" : "bad-t"}">${mshort(r.pr)}</td><td class="r">${r.rev ? Math.round(r.pr / r.rev * 100) : 0}%</td></tr>`).join("")}<tr class="tot"><td colspan="2">Jami</td><td class="r">${mshort(sum(rows, r => r.rev))}</td><td class="r">${mshort(sum(rows, r => r.c))}</td><td class="r">${mshort(sum(rows, r => r.pr))}</td><td></td></tr></tbody></table></div>` : `<div class="empty">Shu davrda sotilgan loyiha yo'q</div>`}</div>`;
   // Jurnal
   const jr = [...pays.map(p => ({d:p.date, t:"in", x:p})), ...exps.map(e => ({d:e.date, t:"out", x:e}))].sort((a, b) => b.d.localeCompare(a.d)).slice(0, 60);
   h += bankCardHTML();
