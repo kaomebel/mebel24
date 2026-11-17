@@ -286,7 +286,7 @@ textarea.inp{resize:vertical}
 @media (max-width:860px){
   .board.tb{margin-left:calc(-1 * max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1 * max(16px,env(safe-area-inset-right,0px)));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));scroll-padding-left:max(16px,env(safe-area-inset-left,0px))}
   .board.tb .col{flex-basis:82vw;max-height:calc(100vh - 230px)}
-  .head .btn.pri{display:none}
+  .head .btn.newp{display:none}
 }
 .tcard .tlink{display:flex;flex-direction:column;gap:4px;text-decoration:none;color:var(--fg)}
 .tcard>.btn{margin-top:6px;justify-content:center}
@@ -306,3 +306,5 @@ textarea.inp{resize:vertical}
 .keybox{display:flex;gap:8px;align-items:center;background:var(--surface2);border:1px dashed var(--line);border-radius:10px;padding:10px;margin:6px 0 10px;min-width:0}
 .keybox code{flex:1;min-width:0;overflow-wrap:anywhere;font-family:var(--f-mono);font-size:12px}
 .steps2{margin:6px 0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.team-cta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.team-cta b{display:block;font-size:16px}

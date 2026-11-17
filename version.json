@@ -1,9 +1,8 @@
 {
- "version": "1.7",
- "date": "2026-11-15",
+ "version": "1.8",
+ "date": "2026-11-17",
  "notes": [
-  "Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi",
-  "Pul tushganda darhol xabarnoma",
-  "Moliya: «Bank tushumlari» bo'limi"
+  "Telefonda «+ Xodim», «+ Usluga», «+ Kirim», «+ Chiqim» tugmalari ko'rinmay qolgan xato tuzatildi",
+  "Bosh sahifada administrator uchun «Xodim qo'shish» tugmasi"
  ]
 }

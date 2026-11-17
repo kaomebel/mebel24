@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.7";
+const APP_VERSION = "1.8";
 const CHANGELOG = [
+  ["1.8", "17.11.2026", ["Telefonda «+ Xodim», «+ Usluga», «+ Kirim», «+ Chiqim» tugmalari ko'rinmay qolgan xato tuzatildi", "Bosh sahifada administrator uchun «Xodim qo'shish» tugmasi"]],
   ["1.7", "15.11.2026", ["Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi", "Pul tushganda darhol xabarnoma (xodimga, kassirga, administratorga)", "Moliya: «Bank tushumlari» — loyihaga bog'lanmagan tushumlarni bog'lash"]],
   ["1.6", "14.11.2026", ["Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi"]],
   ["1.5", "13.11.2026", ["«Jarayonlar» ichida «Ishlab chiqarish» doskasi: material, kesish, kromka, rover, sexga keltirish, furnitura ustunlari", "Kartochkadan bir bosishda keyingi ishlab chiqarish qadamini belgilash"]],
@@ -266,6 +267,7 @@ function vBosh(){
   const monthSold = ST.projects.filter(p => inPeriod(p.sale?.date, "oy"));
 
   let h = installHTML();
+  if (isRole("admin")) h += `<div class="team-cta"><div><b>Jamoa: ${ST.users.filter(u => u.active !== false).length} xodim</b><span class="small muted">Yangi xodim qo'shing va unga login hamda parol bering</span></div><div class="actions" style="margin:0"><button class="btn pri" data-act="userEdit" data-id="">+ Xodim qo'shish</button><a class="btn" href="#xodimlar">Xodimlar</a></div></div>`;
   const k = [];
   k.push(["Vazifalarim", tasks.length, "", "#vazifalar"]);
   k.push(["Jarayondagi loyihalar", act.length, "", "#loyihalar"]);
@@ -315,7 +317,7 @@ function tcard(p, s){
 }
 function vVazifalar(){
   const t = myTasks();
-  let h = `<div class="head"><div><h1>Vazifalarim</h1><p class="muted">Sizga biriktirilgan ishlar bosqichlar bo'yicha. Kartani bosing — loyiha ochiladi</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  let h = `<div class="head"><div><h1>Vazifalarim</h1><p class="muted">Sizga biriktirilgan ishlar bosqichlar bo'yicha. Kartani bosing — loyiha ochiladi</p></div><button class="btn pri newp" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
   if (!t.length) return h + `<div class="card"><div class="empty"><h3>Vazifa yo'q</h3><p>Sizga biriktirilgan ish hozircha yo'q.</p></div></div>`;
   const late = t.filter(x => x.s.due && x.s.due < today()).length, tod = t.filter(x => x.s.due === today()).length;
   if (late || tod) h += `<div class="chips" style="margin-bottom:12px">${late ? pill(late + " ta kechikkan", "bad") : ""} ${tod ? pill(tod + " ta bugun", "warn") : ""}</div>`;
@@ -339,7 +341,7 @@ function vJarayonlar(){
   if (UI.jmine) list = list.filter(p => { const s = nextStep(p); return p.sellerId === me || p.managerId === me || s?.who === me || (s?.all || []).includes(me); });
   list.sort((a, b) => (a.sale?.deadline || "9999").localeCompare(b.sale?.deadline || "9999"));
   const prod = UI.jview === "ishlab";
-  let h = `<div class="head"><div><h1>Jarayonlar</h1><p class="muted">${prod ? "Ishlab chiqarishdagi loyihalar qaysi qadamda: materialdan yig'ishgacha" : "Har bir loyiha qaysi bosqichda ketyapti: leaddan topshirishgacha"}</p></div><button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  let h = `<div class="head"><div><h1>Jarayonlar</h1><p class="muted">${prod ? "Ishlab chiqarishdagi loyihalar qaysi qadamda: materialdan yig'ishgacha" : "Har bir loyiha qaysi bosqichda ketyapti: leaddan topshirishgacha"}</p></div><button class="btn pri newp" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
   const nProd = list.filter(p => p.status === "faol" && p.stage === "ishlab").length;
   h += `<div class="toolbar" style="flex-wrap:wrap"><div class="mode"><button class="${!prod ? "on" : ""}" data-act="jview" data-v="">Hamma bosqichlar</button><button class="${prod ? "on" : ""}" data-act="jview" data-v="ishlab">Ishlab chiqarish (${nProd})</button></div>
     <div class="chips"><button class="chip ${!UI.jmine ? "on" : ""}" data-act="jmine" data-v="">Hamma loyihalar</button><button class="chip ${UI.jmine ? "on" : ""}" data-act="jmine" data-v="1">Mening loyihalarim</button></div></div>`;
@@ -360,14 +362,14 @@ function vLoyihalar(){
   const q = UI.q.trim().toLowerCase();
   if (q) list = list.filter(p => [p.no, p.client?.name, p.client?.phone, p.client?.phone2, p.client?.address, needText(p)].join(" ").toLowerCase().includes(q.replace(/^№\s*0*/, "")));
   list.sort((a, b) => UI.ltab === "kutish" ? (a.decision?.followup || "").localeCompare(b.decision?.followup || "") : String(b.updated_at || b.created_at).localeCompare(String(a.updated_at || a.created_at)));
-  let h = `<div class="head"><div><h1>Loyihalar</h1><p class="muted">Har bir mijoz — bitta loyiha: leaddan topshirishgacha</p></div><button class="btn pri hide-m" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
+  let h = `<div class="head"><div><h1>Loyihalar</h1><p class="muted">Har bir mijoz — bitta loyiha: leaddan topshirishgacha</p></div><button class="btn pri hide-m newp" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button></div>`;
   h += `<div class="tabs">${tabs.map(([k, n, f]) => `<button class="tab2 ${UI.ltab === k ? "on" : ""}" data-act="ltab" data-v="${k}">${n} <em>${ST.projects.filter(f).length}</em></button>`).join("")}</div>`;
   h += `<div class="toolbar"><input class="inp" id="q" type="search" placeholder="Qidirish: ism, telefon, raqam" value="${esc(UI.q)}" aria-label="Qidirish">${UI.ltab === "faol" ? `<div class="mode hide-m"><button class="${UI.lview === "list" ? "on" : ""}" data-act="lview" data-v="list">Ro'yxat</button><button class="${UI.lview === "board" ? "on" : ""}" data-act="lview" data-v="board">Doska</button></div>` : ""}</div>`;
   if (UI.ltab === "faol") h += `<div class="chips" style="margin-bottom:12px"><button class="chip ${!UI.lstage ? "on" : ""}" data-act="lstage" data-v="">Hammasi</button>${STAGES.map(s => `<button class="chip ${UI.lstage === s.k ? "on" : ""}" data-act="lstage" data-v="${s.k}">${esc(s.n)} <b>${ST.projects.filter(p => p.status === "faol" && p.stage === s.k).length}</b></button>`).join("")}</div>`;
   if (UI.ltab === "faol" && UI.lview === "board" && !UI.lstage){
     return h + `<div class="board">${STAGES.map(s => { const items = list.filter(p => p.stage === s.k); return `<div class="col"><div class="col-h"><b>${esc(s.n)}</b><span class="muted">${items.length}</span></div>${items.map(p => projCard(p, true)).join("") || `<div class="muted small pad">Bo'sh</div>`}</div>`; }).join("")}</div>`;
   }
-  if (!list.length) return h + `<div class="card"><div class="empty"><h3>${q ? "Hech narsa topilmadi" : "Bu yerda hali loyiha yo'q"}</h3>${q ? "" : `<button class="btn pri" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button>`}</div></div>`;
+  if (!list.length) return h + `<div class="card"><div class="empty"><h3>${q ? "Hech narsa topilmadi" : "Bu yerda hali loyiha yo'q"}</h3>${q ? "" : `<button class="btn pri newp" data-act="newProject">${ic("plus", 18)} Yangi loyiha</button>`}</div></div>`;
   return h + `<div class="cards" id="plist">${list.map(p => projCard(p)).join("")}</div>`;
 }
 function projCard(p, compact){
