@@ -308,3 +308,19 @@ textarea.inp{resize:vertical}
 .steps2{margin:6px 0;padding-left:20px;font-size:14px;display:flex;flex-direction:column;gap:4px}
 .team-cta{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--accent-soft);border-radius:12px;padding:14px 16px;margin-bottom:14px}
 .team-cta b{display:block;font-size:16px}
+/* ===== Buyurtma, furnitura, rasmlar ===== */
+.oitem{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:var(--surface2);display:flex;flex-direction:column;gap:10px;align-items:flex-start}
+.oi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;width:100%}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.thumb{width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--line);padding:0;background:var(--surface2);cursor:pointer;display:grid;place-items:center;color:var(--muted)}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-btn{cursor:pointer}
+.unfin{display:flex;flex-direction:column;gap:8px}
+.uf{border:1px solid var(--line2);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.uf .chk{width:100%}
+.furn-h{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.buy{display:flex;flex-direction:column;gap:8px}
+.buy-row{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.buy-in{display:grid;grid-template-columns:90px 130px;gap:8px}
+.buy-tot{margin-top:10px;font-size:15px}
+@media (max-width:860px){.oi-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.buy-in{grid-template-columns:1fr 1fr;width:100%}}

@@ -1,8 +1,11 @@
 {
- "version": "1.8",
+ "version": "1.9",
  "date": "2026-11-17",
  "notes": [
-  "Telefonda «+ Xodim», «+ Usluga», «+ Kirim», «+ Chiqim» tugmalari ko'rinmay qolgan xato tuzatildi",
-  "Bosh sahifada administrator uchun «Xodim qo'shish» tugmasi"
+  "Buyurtmani to'ldirish: mijoz, o'rnatish manzili, bir nechta mebel (turi, materiali, rangi, matras), yetkazish va o'rnatish",
+  "Narxlar xotirasi: laminat, raspil, kromka, rover, furnitura narxlari o'zi qo'yiladi va yangilanadi",
+  "Furnitura ro'yxati, «keldi» deb tasdiqlash va chek rasmi",
+  "Yangi «Ta'minot» bo'limi",
+  "Chala ishlarga rasm biriktirish"
  ]
 }

@@ -5,8 +5,9 @@
    ===================================================================== */
 "use strict";
 const APP = "Mebel 24";
-const APP_VERSION = "1.8";
+const APP_VERSION = "1.9";
 const CHANGELOG = [
+  ["1.9", "17.11.2026", ["Buyurtmani to'ldirish: mijoz, o'rnatish manzili, bir nechta mebel (turi, materiali, rangi, matras), yetkazish va o'rnatish", "Narxlar xotirasi: laminat, raspil, kromka, rover, furnitura narxlari o'zi qo'yiladi va yangilanadi", "Furnitura ro'yxati furniturachi uchun, «keldi» deb tasdiqlash, chek rasmi", "Yangi «Ta'minot» bo'limi", "Chala ishlarga rasm biriktirish"]],
   ["1.8", "17.11.2026", ["Telefonda «+ Xodim», «+ Usluga», «+ Kirim», «+ Chiqim» tugmalari ko'rinmay qolgan xato tuzatildi", "Bosh sahifada administrator uchun «Xodim qo'shish» tugmasi"]],
   ["1.7", "15.11.2026", ["Bank kartasini ulash: kartaga pul tushganda karta orqali to'lov avtomatik «✓ Tasdiqlandi» bo'ladi", "Pul tushganda darhol xabarnoma (xodimga, kassirga, administratorga)", "Moliya: «Bank tushumlari» — loyihaga bog'lanmagan tushumlarni bog'lash"]],
   ["1.6", "14.11.2026", ["Ekranni tepadan pastga tortsangiz ma'lumotlar va ilovaning yangi versiyasi yuklanadi"]],
@@ -35,7 +36,7 @@ const STAGES = [
 ];
 const SK = Object.fromEntries(STAGES.map((s, i) => [s.k, {...s, i}]));
 const STATUS = {faol:["Jarayonda","accent"], kutish:["O'ylab ko'rmoqda","warn"], rad:["Rad etildi","bad"], yopilgan:["Yopilgan","done"]};
-const NEED_TYPES = ["Oshxona","Shkaf-kupe","Shkaf","Yotoqxona","Bolalar xonasi","Mehmonxona","Prixojka","Ofis mebeli","Vanna mebeli","Boshqa"];
+const NEED_TYPES = ["Oshxona","Shkaf-kupe","Shkaf","Krovat","Yotoqxona","Bolalar xonasi","Mehmonxona","Prixojka","Ofis mebeli","Vanna mebeli","Boshqa"];
 const SOURCES = ["Instagram","Telegram","Tanish-bilish","Do'kon (shourum)","Qayta mijoz","Reklama","Boshqa"];
 const REFUSE = [["qimmat","Narx qimmatlik qildi"],["joyiga","Joyiga yoki dizayniga mos kelmadi"],["kutib","Ko'p kutib qoldi"],["qoniqmadi","Ishimiz yoki xizmatimiz qoniqtirmadi"],["ishonmadi","Bizga ishonmadi"],["boshqa_joy","Boshqa joydan oldi"],["boshqa","Boshqa sabab"]];
 const FOLLOW = [[3,"3 kundan keyin"],[7,"1 haftadan keyin"],[14,"2 haftadan keyin"],[30,"1 oydan keyin"]];
@@ -54,12 +55,13 @@ const COMPLAINTS = [["sifat","Sifat"],["muddat","Muddat kechikdi"],["rang","Rang
 const PROD_CHECKS = [["material","Material sotib olindi"],["kesishga","Kesishga berildi"],["kesildi","Kesildi"],["kromka","Kromkalandi"],["rover","Rover qilindi"],["keltirildi","Sexga keltirildi"],["furnitura","Furnitura olindi"]];
 const NAV = [
   ["bosh","Bosh sahifa","all"],["vazifalar","Vazifalarim","all"],["jarayonlar","Jarayonlar","all"],["loyihalar","Loyihalar","all"],
-  ["sotuv","Sotuv",["admin","menejer","sotuvchi"]],["moliya","Moliya",FIN_ROLES],["uslugalar","Uslugalar",["admin","menejer","taminot"]],
+  ["sotuv","Sotuv",["admin","menejer","sotuvchi"]],["moliya","Moliya",FIN_ROLES],["taminot","Ta'minot",["admin","menejer","taminot","buxgalter"]],["uslugalar","Uslugalar",["admin","menejer","taminot"]],
   ["xodimlar","Xodimlar",["admin"]],["sozlamalar","Sozlamalar","all"]
 ];
 const ICON = {
   bosh:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
   vazifalar:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  taminot:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>',
   jarayonlar:'<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/>',
   korsatkich:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
   loyihalar:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v16"/>',
@@ -145,7 +147,7 @@ const projectPaid = p => num(ST.paid[p.id]);
 const projectCost = p => sum(ST.expenses.filter(x => x.project_id === p.id), x => x.amount);
 const projectDebt = p => p.sale ? Math.max(0, projectPrice(p) + projectExtra(p) - projectPaid(p)) : 0;
 const projectTitle = p => p.client?.name || p.client?.phone || "Mijoz";
-const needText = p => [...(p.need?.types || [])].join(", ") || p.need?.desc || "—";
+const needText = p => (p.order?.items?.length ? [...new Set(p.order.items.map(i => i.type))].join(", ") : [...(p.need?.types || [])].join(", ")) || p.need?.desc || "—";
 function inPeriod(d, per = UI.period){
   if (!d) return false; d = String(d).slice(0, 10); const t = today();
   if (per === "oy") return d.slice(0, 7) === t.slice(0, 7);
@@ -400,6 +402,7 @@ function vProject(id){
   h += `<div class="tabs">${[["jarayon","Jarayon"],["moliya","Pul va xarajat"],["tarix","Tarix"]].map(([k, n]) => `<button class="tab2 ${UI.ptab === k ? "on" : ""}" data-act="ptab" data-v="${k}">${n}</button>`).join("")}</div>`;
   if (UI.ptab === "moliya") return h + projMoney(p);
   if (UI.ptab === "tarix") return h + `<div class="card">${(p.log || []).length ? `<div class="list">${p.log.slice().reverse().map(l => `<div class="row"><div class="grow"><div class="t1">${esc(l.t)}</div><div class="t2">${esc(l.u || "")}</div></div><span class="t2 nowrap">${esc(l.d)}</span></div>`).join("")}</div>` : `<div class="empty">Tarix bo'sh</div>`}</div>`;
+  if (p.status !== "rad") h += orderCardHTML(p);
   h += currentCard(p);
   h += doneStages(p);
   if (isRole("admin")) h += `<div style="margin-top:20px;text-align:right"><button class="btn sm danger" data-act="delProject" data-id="${p.id}">${ic("trash", 16)} Loyihani o'chirish</button></div>`;
@@ -425,7 +428,7 @@ function currentCard(p){
   switch (p.stage){
     case "lead":
       body = kv([["Qanday mebel", esc(needText(p))], ["Tafsilot", esc(p.need?.desc || "")], ["Taxminiy narx", p.lead?.approxPrice ? money(p.lead.approxPrice) + " (aytilgan)" : "aytilmagan"], ["Sotuvchi", esc(userName(p.sellerId))], ["Izoh", esc(p.lead?.note || "")]]);
-      acts = a("toZamer", `O'lchovga yuborish →`, "pri big") + a("approx", "Taxminiy narx") + a("thinking", "O'ylab ko'radi") + a("refuse", "Rad etdi", "danger");
+      acts = (p.order?.items?.length ? "" : a("orderEdit", "Buyurtmani to'ldirish", "pri big")) + a("toZamer", `O'lchovga yuborish →`, p.order?.items?.length ? "pri big" : "big") + a("approx", "Taxminiy narx") + a("thinking", "O'ylab ko'radi") + a("refuse", "Rad etdi", "danger");
       break;
     case "zamer": {
       const z = p.zamer || {};
@@ -439,7 +442,7 @@ function currentCard(p){
       const checks = [need3d ? ["model3d", "3D model tayyorlandi"] : null, ["parts", "Detallar texnologik ro'yxati tayyor"], ["furn", "Furnitura hisobi chiqarildi"]].filter(Boolean);
       body = `${kv([["Texnolog / dizayner", esc(userName(d.by))], ["3D model", need3d ? "kerak" : "kerak emas"], ["Izoh", esc(d.note || "")]])}
         <div class="checks">${checks.map(([k, n]) => checkBtn(p, "design", k, n, d.checks?.[k])).join("")}</div>
-        <div class="sub">Furnitura rejasi</div>${furnPlanHTML(p)}`;
+        <div class="sub">Furnitura ro'yxati</div>${furnListHTML(p)}`;
       acts = a("toProd", "Ishlab chiqarishga berish →", "pri big") + a("designEdit", "Texnolog va izoh") + a("furnAdd", "+ Furnitura qatori");
       break;
     }
@@ -447,6 +450,7 @@ function currentCard(p){
       const pr = p.prod || {};
       body = `${kv([["Kesish", pr.cutService ? esc(svcName(pr.cutService)) + (pr.saw ? " · " + esc(pr.saw) : "") : "tanlanmagan"], ["Kromka", pr.edgeService ? esc(svcName(pr.edgeService)) + " · " + esc(pr.edgeType || "") + (pr.double ? " · dvaynoy" : "") : "tanlanmagan"], ["Rover", pr.rover ? (pr.roverService ? esc(svcName(pr.roverService)) : "bor") : "yo'q"], ["Izoh", esc(pr.note || "")]])}
         <div class="checks">${PROD_CHECKS.filter(([k]) => k !== "rover" || pr.rover).map(([k, n]) => checkBtn(p, "prod", k, n, pr.checks?.[k])).join("")}</div>
+        <div class="sub">Furnitura</div>${furnListHTML(p)}
         <div class="sub">Xarajat yozish</div><div class="qexp">${["material","kesish","kromka","rover","yol_sex","furnitura"].filter(c => c !== "rover" || pr.rover).map(c => `<button class="btn sm" data-act="expAdd" data-id="${p.id}" data-c="${c}">+ ${esc(EXP[c].n)}</button>`).join("")}</div>${stageExpenses(p, ["material","kesish","kromka","rover","yol_sex","furnitura"])}`;
       acts = a("toAsm", "Yig'ishga o'tkazish →", "pri big") + a("prodPlan", "Qaysi uslugada: kesish, kromka, rover");
       break;
@@ -472,7 +476,7 @@ function currentCard(p){
       const cl = COMPLAINTS.filter(c => (hd.complaints || []).includes(c[0])).map(c => c[1]);
       body = `<div class="debt ${debt > 0 ? "" : "ok"}"><div><span>Mijozdan olinishi kerak</span><b>${money(Math.max(0, debt))}</b><small>Shartnoma ${money(projectPrice(p))}${projectExtra(p) ? " + qo'shimcha " + money(projectExtra(p)) : ""} · oldindan to'langan ${money(sum(ST.payments.filter(x => x.project_id === p.id && x.kind === "zaklat"), x => x.amount) || 0)} · jami to'langan ${money(projectPaid(p))}</small></div>${debt > 0 ? `<button class="btn pri" data-act="payAdd" data-id="${p.id}" data-k="qoldiq">To'lov qabul qilish</button>` : pill("To'liq to'langan", "ok")}</div>
         ${kv([["Topshirilgan sana", fdate(hd.date)], ["Mijoz rozimi", hd.satisfied ? {ha:"Ha, hammasidan rozi", qisman:"Qisman rozi", yoq:"Rozi emas"}[hd.satisfied] : ""], ["Norozilik", cl.length ? esc(cl.join(", ")) : ""], ["Izoh", esc(hd.complaintText || "")], ["Qo'shimcha xizmat", hd.extra ? esc(hd.extra) + (hd.extraPrice ? " · " + money(hd.extraPrice) : "") : ""]])}
-        ${(hd.unfinished || []).length ? `<div class="sub">Chala ishlar</div><div class="checks">${hd.unfinished.map((u, i) => `<button class="chk ${u.done ? "on" : ""}" data-act="unfin" data-id="${p.id}" data-i="${i}"><i>${u.done ? ic("check", 14) : ""}</i><span>${esc(u.text)}</span></button>`).join("")}</div>` : ""}`;
+        ${unfinHTML(p)}`;
       acts = a("close", "Loyihani yopish", "pri big") + a("handEdit", "Topshirish natijasi (mijoz fikri, chala ishlar)");
       break;
     }
@@ -494,7 +498,8 @@ function expDetail(e){
   const d = e.details || {}; const s = [];
   if (e.service_id) s.push(svcName(e.service_id));
   if (d.saw) s.push(d.saw); if (d.sheets) s.push(d.sheets + " list"); if (d.edgeType) s.push(d.edgeType); if (d.double) s.push("dvaynoy"); if (d.meters) s.push(d.meters + " m");
-  if (d.ftype) s.push(d.ftype); if (d.name) s.push(d.name); if (d.qty) s.push(d.qty + " dona"); if (d.worker) s.push(userName(d.worker)); if (d.route) s.push(d.route);
+  if (d.items) s.push(d.items.length + " xil: " + d.items.map(x => `${x.name} ×${x.qty}`).join(", ")); else { if (d.ftype) s.push(d.ftype); if (d.name) s.push(d.name); if (d.qty) s.push(d.qty + " dona"); }
+  if (d.unit && !d.items) s.push("× " + mshort(d.unit)); if (d.supplier) s.push(d.supplier); if ((d.photos || []).length) s.push("chek biriktirilgan"); if (d.worker) s.push(userName(d.worker)); if (d.route) s.push(d.route);
   if (e.note) s.push(e.note);
   return s.join(" · ");
 }
@@ -700,6 +705,7 @@ const ACT = {
       log(p, "Lead qo'shildi" + (num(v.approx) ? ` · taxminiy narx ${money(v.approx)}` : ""));
       const s = await saveP(p, dup ? `Saqlandi. Diqqat: bu raqam ${pno(dup)} loyihada ham bor` : "Lead saqlandi");
       location.hash = "p-" + s.id;
+      setTimeout(() => ACT.orderEdit({dataset:{id:s.id}}), 120);
     }}),
   editClient: e => { const p = getP(e.dataset.id); openModal({title:"Mijoz va ehtiyoj", wide:true, body:`<div class="form">
       ${fld("Telefon", "phone", p.client?.phone, {req:true, type:"tel"})}${fld("Qo'shimcha telefon", "phone2", p.client?.phone2, {type:"tel"})}${fld("Ism", "name", p.client?.name)}${fld("Manzil", "address", p.client?.address)}

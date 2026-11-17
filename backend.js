@@ -27,6 +27,7 @@ function parseBankSms(text){
   const c = s.match(/[*xX•]+\s?(\d{4})(?!\d)/) || s.match(/(?:karta|карта|card)\D{0,12}(\d{4})/i);
   return {amount, direction: plus || IN.test(low) ? "in" : minus || OUT.test(low) ? "out" : "unknown", last4: c ? c[1] : ""};
 }
+const num0 = v => { const n = parseFloat(String(v ?? "").replace(/\s/g, "").replace(",", ".")); return isFinite(n) ? n : 0; };
 function newSecretKey(){ const a = new Uint8Array(24); crypto.getRandomValues(a); return [...a].map(x => x.toString(16).padStart(2, "0")).join(""); }
 const safeLS = {
   get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -43,7 +44,7 @@ class LocalBackend {
   onChange(f){ this.listeners.push(f); }
   async init(){
     this.db = this._load() || {users:[], services:[], projects:[], payments:[], expenses:[], settings:{}, seq:0};
-    this.db.bankSources = this.db.bankSources || []; this.db.bankTx = this.db.bankTx || [];
+    this.db.bankSources = this.db.bankSources || []; this.db.bankTx = this.db.bankTx || []; this.db.catalog = this.db.catalog || [];
     const sid = safeLS.get(this.key + ":session");
     this.me = sid ? this.db.users.find(u => u.id === sid && u.active) || null : null;
     return {needsBootstrap: !this.db.users.length};
@@ -70,7 +71,7 @@ class LocalBackend {
   async loadAll(){
     const d = this.db; const paid = {};
     d.payments.forEach(p => { if (p.project_id) paid[p.project_id] = (paid[p.project_id] || 0) + Number(p.amount); });
-    return {users:d.users.map(u => this._pub(u)), services:d.services, projects:d.projects.filter(p => !p.deleted), payments:d.payments, expenses:d.expenses, settings:d.settings || {}, paid, bankTx:d.bankTx, bankSources:d.bankSources.map(({token_hash, ...x}) => x)};
+    return {users:d.users.map(u => this._pub(u)), services:d.services, projects:d.projects.filter(p => !p.deleted), payments:d.payments, expenses:d.expenses, settings:d.settings || {}, paid, bankTx:d.bankTx, bankSources:d.bankSources.map(({token_hash, ...x}) => x), catalog:d.catalog.filter(c => c.active !== false)};
   }
   async saveProject(p){
     const now = new Date().toISOString();
@@ -87,6 +88,15 @@ class LocalBackend {
     if (bank){ const tx = this.db.bankTx.find(t => t.direction === "in" && !t.matched_payment_id && Number(t.amount) === Number(r.amount) && Date.now() - new Date(t.created_at) < 48 * 3600e3); if (tx){ tx.matched_payment_id = r.id; Object.assign(r, {status:"tasdiqlangan", bank_tx_id:tx.id, confirmed_at:new Date().toISOString()}); } }
     this._save(); return r;
   }
+  async saveCatalog(it){
+    const {id, ...rest} = it;
+    const i = this.db.catalog.findIndex(x => (id && x.id === id) || (x.kind === rest.kind && x.name.toLowerCase() === String(rest.name).toLowerCase()));
+    const row = {...(i >= 0 ? this.db.catalog[i] : {id:uidGen(), active:true}), ...rest, updated_at:new Date().toISOString(), updated_by:this.me?.id};
+    if (i >= 0) this.db.catalog[i] = row; else this.db.catalog.push(row); this._save(); return row;
+  }
+  /* Rasm: sinov rejimida kichraytirilgan rasmning o'zi (data URL) saqlanadi */
+  async uploadPhoto(blob){ return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error("Rasmni o'qib bo'lmadi")); r.readAsDataURL(blob); }); }
+  photoUrl(ref){ return ref; }
   async saveBankSource({name, last4}){ this._admin(); const key = newSecretKey(); this.db.bankSources.push({id:uidGen(), name, card_last4:last4 || "", token_hash:await sha256(key), active:true, created_at:new Date().toISOString()}); this._save(); return key; }
   async deleteBankSource(id){ this._admin(); const s = this.db.bankSources.find(x => x.id === id); if (s) s.active = false; this._save(); }
   async bankTest(key, text){
@@ -187,7 +197,7 @@ class SupabaseBackend {
   _realtime(){
     if (this.chan) return;
     this.chan = this.sb.channel("ilova");
-    ["il_projects","il_payments","il_expenses","il_services","il_users","il_bank_tx"].forEach(t => this.chan.on("postgres_changes", {event:"*", schema:"public", table:t}, () => this._emit()));
+    ["il_projects","il_payments","il_expenses","il_services","il_users","il_bank_tx","il_catalog"].forEach(t => this.chan.on("postgres_changes", {event:"*", schema:"public", table:t}, () => this._emit()));
     this.chan.subscribe();
   }
   async _all(table, sel = "*", q = x => x){
@@ -207,7 +217,9 @@ class SupabaseBackend {
     let bankTx = [], bankSources = [];
     try { const r1 = await this.sb.from("il_bank_tx").select("*").order("created_at", {ascending:false}).limit(300); if (!r1.error) bankTx = r1.data.map(t => ({...t, amount:Number(t.amount)})); } catch (e) {}
     try { const r2 = await this.sb.from("il_bank_sources").select("id,name,card_last4,active,last_seen,created_at"); if (!r2.error) bankSources = r2.data; } catch (e) {}
-    return {bankTx, bankSources, users, services, projects:projects.map(r => ({...r.data, id:r.id, no:r.no, stage:r.stage, status:r.status, created_at:r.created_at, updated_at:r.updated_at, created_by:r.created_by, sellerId:r.seller_id, managerId:r.manager_id})),
+    let catalog = [];
+    try { const r3 = await this.sb.from("il_catalog").select("*").eq("active", true).order("name"); if (!r3.error) catalog = r3.data.map(c => ({...c, price:Number(c.price)})); } catch (e) {}
+    return {catalog, bankTx, bankSources, users, services, projects:projects.map(r => ({...r.data, id:r.id, no:r.no, stage:r.stage, status:r.status, created_at:r.created_at, updated_at:r.updated_at, created_by:r.created_by, sellerId:r.seller_id, managerId:r.manager_id})),
       payments:payments.map(p => ({...p, amount:Number(p.amount)})), expenses:expenses.map(e => ({...e, amount:Number(e.amount)})), settings:st.data?.data || {}, paid};
   }
   _row(p){
@@ -232,6 +244,27 @@ class SupabaseBackend {
     if (error) throw new Error(sbErr(error));
     if (data.status === "kutilmoqda"){ try { await this.sb.rpc("il_bank_try_match", {p_payment:data.id}); } catch (e) {} }
     this._emit(); return data;
+  }
+  async saveCatalog(it){
+    const row = {kind:it.kind, name:it.name, unit:it.unit || "", price:num0(it.price), type:it.type || "", updated_at:new Date().toISOString(), updated_by:this.me.id, active:true};
+    const q = it.id ? this.sb.from("il_catalog").update(row).eq("id", it.id) : this.sb.from("il_catalog").upsert(row, {onConflict:"kind,name_key"});
+    const {error} = await q;
+    if (error) throw new Error(/does not exist|relation|name_key/i.test(error.message) ? "Narxlar xotirasi uchun bazani yangilash kerak" : sbErr(error));
+    this._emit();
+  }
+  async uploadPhoto(blob, folder = "umumiy"){
+    const path = folder + "/" + uidGen() + ".jpg";
+    const {error} = await this.sb.storage.from("il-files").upload(path, blob, {contentType:"image/jpeg", upsert:false});
+    if (error) throw new Error(/not found|bucket/i.test(error.message) ? "Rasm saqlash uchun bazani yangilash kerak" : sbErr(error));
+    return "sb:" + path;
+  }
+  photoUrl(ref){
+    if (!ref || !String(ref).startsWith("sb:")) return ref;
+    const path = ref.slice(3); this.signed = this.signed || {};
+    const c = this.signed[path]; if (c && c.exp > Date.now()) return c.url;
+    if (!c || !c.pending){ this.signed[path] = {pending:true, exp:0, url:""};
+      this.sb.storage.from("il-files").createSignedUrl(path, 3600).then(({data}) => { if (data?.signedUrl){ this.signed[path] = {url:data.signedUrl, exp:Date.now() + 3300e3}; this._emit(); } }); }
+    return "";
   }
   async saveBankSource({name, last4}){
     const key = newSecretKey(); const token_hash = await sha256(key);
